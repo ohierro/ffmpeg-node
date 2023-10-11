@@ -1,11 +1,12 @@
 {
-  "name": "@unaxiom/ffmpeg",
+  "name": "@ohierro/ffmpeg",
   "version": "0.1.2",
   "description": "FFmpeg CLI wrapper, including ability to quit the process",
-  "main": "src/ffmpeg.js",
-  "types": "src/ffmpeg.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -b"
   },
   "repository": {
     "type": "git",
@@ -26,12 +27,9 @@
   },
   "homepage": "https://github.com/Unaxiom/ffmpeg-node#readme",
   "devDependencies": {
-    "gulp": "^3.9.1",
-    "gulp-tsb": "^2.0.5",
-    "node-notifier": "^5.1.2"
+    "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@types/node": "^8.0.57",
-    "typescript": "^2.6.2"
+    "@types/node": "^20.8.4"
   }
 }
