@@ -4,3 +4,4 @@ exports.StreamInformation = void 0;
 class StreamInformation {
 }
 exports.StreamInformation = StreamInformation;
+//# sourceMappingURL=stream-information.js.map

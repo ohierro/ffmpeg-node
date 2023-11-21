@@ -23,6 +23,8 @@ export declare class FFmpeg {
     /**Begins the FFmpeg process. Accepts an optional silent boolean value which supresses the output */
     run(silent?: boolean): void;
     getInformation(absolutePath: string): Promise<FileInformation>;
+    getPacketNumber(): Promise<Number>;
+    convert(): Promise<boolean>;
     /**Quits the FFmpeg process */
     quit(): void;
     /**Kills the process forcefully (might not save the output) */

@@ -4,3 +4,4 @@ exports.FileInformation = void 0;
 class FileInformation {
 }
 exports.FileInformation = FileInformation;
+//# sourceMappingURL=file-information.js.map
