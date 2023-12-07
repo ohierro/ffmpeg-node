@@ -6,6 +6,8 @@
 import child_process = require('child_process');
 import { StreamInformation } from './stream-information'
 import { FileInformation } from './file-information';
+import { Observable } from 'rxjs';
+import { ConvertOptions } from './convert-options';
 
 /**Class that does the ffmpeg transformations */
 export class FFmpeg {
@@ -125,14 +127,19 @@ export class FFmpeg {
         })
     }
 
-    getPacketNumber(): Promise<Number> {
+    /**
+     * Get the number of packets (length) of the `inputPath` file
+     *
+     * @param inputPath Absolute path to file
+     * @returns A Promise resolved with the number of packets of the file
+     */
+    getPacketNumber(inputPath: string): Promise<number> {
         // console.log('new promise');
 
         return new Promise((resolve, reject) => {
             // ffmpeg -y -i file.mp4 test.mp4
             const cmd = 'ffprobe'
             // ffprobe -v error -count_packets -select_streams v:0 -show_entries stream=nb_read_packets -of default=nokey=1:noprint_wrappers=1 files/file.mp4
-
 
             const args = ['-v',
                             'error',
@@ -144,7 +151,7 @@ export class FFmpeg {
                             '-of',
                             // 'csv=p=0',
                             'default=nokey=1:noprint_wrappers=1',
-                            'files/file.mp4',
+                            inputPath,
                         ]
 
             // console.log('spawn: ');
@@ -177,96 +184,84 @@ export class FFmpeg {
         })
     }
 
-    async convert(): Promise<boolean> { 
-        console.log('new promise');
+    convert(inputPath: string, outputPath: string, options: ConvertOptions): Observable<Number> {
 
-        const totalPackets = await this.getPacketNumber() as number
+        return new Observable((subscriber) => {
+            this.getPacketNumber(inputPath)
+                .then(totalPackets => {
+                    const cmd = 'ffmpeg'
 
-        return new Promise((resolve, reject) => {
-            // ffmpeg -y -i file.mp4 test.mp4
-            const cmd = 'ffmpeg'
-            const args = [
-                            '-v',
-                            'info',
-                            '-y',
-                            '-i',
-                            'files/file.mp4',
-                            'test.mp4',
-                        ]
+                    const argsVerbose = ['-v', 'error', '-progress','-']
+                    const argsInput = ['-i', inputPath]
+                    const argsOutput = ['-y', outputPath]
+                    let argsScale = []
 
-            // let nbFrames = this.getPacketNumber()
+                    if (options.width && options.height) {
+                        argsScale = ['-vf', `scale=${options.width}:${options.height}`]
+                    }
 
-            console.log('spawn');
+                    const args = [...argsVerbose, ...argsInput, ...argsScale, ...argsOutput]
+                    console.log('spawn');
 
-            const runProcess = child_process.spawn(cmd, args);
-            runProcess.stdin.setDefaultEncoding('utf-8');
+                    const runProcess = child_process.spawn(cmd, args);
+                    runProcess.stdin.setDefaultEncoding('utf-8');
 
-            let response = ''
+                    let response = ''
 
-            runProcess.stdout.on('data', (data) => {
-                // response += data
-                console.log(data);
-            })
-            runProcess.stderr.on('data', (data) => {
-                // console.log(`error ${data}`);
-                // frame= 3859 fps=132 q=-1.0 Lsize=   11006kB time=00:02:08.68 bitrate= 700.6kbits/s dup=1 drop=0 speed= 4.4x
-                const pattern = /frame=\s*(?<nframe>[0-9]+)\s+fps=\s*(?<nfps>[0-9.]+)\s+q=(?<nq>[0-9.-]+)\s+(L?)\s*size=\s*(?<nsize>[0-9]+)(?<ssize>kB|mB|b)?\s*time=\s*(?<sduration>[0-9:.]+)\s*bitrate=\s*(?<nbitrate>[0-9.]+)(?<sbitrate>bits\/s|mbits\/s|kbits\/s)?.*(dup=(?<ndup>\d+)\s*)?(drop=(?<ndrop>\d+)\s*)?speed=\s*(?<nspeed>[0-9.]+)x/;
+                    runProcess.stdout.on('data', (data) => {
+                        // console.log(data);
+                        const pattern = /frame=(?<nframe>\d+)/
 
-                const match = pattern.exec(data);
+                        const match = pattern.exec(data.toString())
 
-                if (match) {
-                    const {
-                        nframe,
-                        nfps,
-                        nq,
-                        nsize,
-                        ssize,
-                        sduration,
-                        nbitrate,
-                        sbitrate,
-                        ndup,
-                        ndrop,
-                        nspeed
-                    } = match.groups;
+                        if (match) {
+                            const { nframe } = match.groups
+                            subscriber.next(parseInt(nframe)/totalPackets)
+                        }
+                        // parse data
+                    })
+                    runProcess.stderr.on('data', (data) => {
+                        subscriber.error(data.toString())
+                        runProcess.kill()
+                        // const pattern = /frame=\s*(?<nframe>[0-9]+)\s+fps=\s*(?<nfps>[0-9.]+)\s+q=(?<nq>[0-9.-]+)\s+(L?)\s*size=\s*(?<nsize>[0-9]+)(?<ssize>kB|mB|b)?\s*time=\s*(?<sduration>[0-9:.]+)\s*bitrate=\s*(?<nbitrate>[0-9.]+)(?<sbitrate>bits\/s|mbits\/s|kbits\/s)?.*(dup=(?<ndup>\d+)\s*)?(drop=(?<ndrop>\d+)\s*)?speed=\s*(?<nspeed>[0-9.]+)x/;
 
-                    console.log(JSON.stringify(match.groups));
-                    console.log(`total packets ${totalPackets}`);
-                    console.log(`percert ${Number.parseInt(match.groups.nframe)/totalPackets}`);
+                        // const match = pattern.exec(data);
 
-                    // console.log("Frame:", nframe);
-                    // console.log("FPS:", nfps);
-                    // console.log("Q:", nq);
-                    // console.log("Size:", nsize + (ssize || ""));
-                    // console.log("Duration:", sduration);
-                    // console.log("Bitrate:", nbitrate + (sbitrate || ""));
-                    // console.log("Dup:", ndup || "Not specified");
-                    // console.log("Drop:", ndrop || "Not specified");
-                    // console.log("Speed:", nspeed);
-                }
+                        // if (match) {
+                        //         // const {
+                        //         //                     nframe,
+                        //         //                     nfps,
+                        //         //                     nq,
+                        //         //                     nsize,
+                        //         //                     ssize,
+                        //         //                     sduration,
+                        //         //                     nbitrate,
+                        //         //                     sbitrate,
+                        //         //                     ndup,
+                        //         //                     ndrop,
+                        //         //                     nspeed
+                        //         //                 } = match.groups;
+                        //     const {
+                        //         nframe,
+                        //     } = match.groups;
 
-                // if (match) {
-                // const {
-                //     nframe,
-                //     nfps,
-                //     nq,
-                //     nsize,
-                //     ssize,
-                //     sduration,
-                //     nbitrate,
-                //     sbitrate,
-                //     ndup,
-                //     ndrop,
-                //     nspeed
-                // } = match.groups;
-            })
-            runProcess.on('exit', function (code, signal) {
-                console.log('exit');
+                        //     subscriber.next(Number.parseInt(match.groups.nframe)/totalPackets)
+                        // }
+                    })
+                    runProcess.on('message', function(code, signal) {
+                        console.log(`message ${code}, ${signal}`);
+                    })
+                    runProcess.on('error', function(code, signal) {
+                        console.log(`error ${code}, ${signal}`);
+                    })
+                    runProcess.on('exit', function (code, signal) {
+                        console.log('exit');
 
-                resolve(true)
-            })
+                        subscriber.complete()
+                    })
+                })
         })
     }
-
 
     /**Quits the FFmpeg process */
     quit(): void {
@@ -284,5 +279,15 @@ export class FFmpeg {
 }
 
 
-new FFmpeg().convert()
-    .then(data => console.log(data))
+// new FFmpeg().convert()
+//     .then(data => console.log(data))
+// new FFmpeg().convert('files/file.mp4', 'files/output/sample.mp4', { width: 640, height: 480, codec: 'h264' })
+//     .subscribe({
+//         next: (e) => {
+//             console.log('event' + e)
+//         },
+//         error: (e) => {
+//             console.log('error: ' + e);
+//         },
+//         complete: () => console.log('complete')
+//     })

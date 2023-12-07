@@ -1,7 +1,8 @@
 import exp = require("constants")
 import { FFmpeg } from "./ffmpeg"
+import { fail } from "assert"
 
-xtest('get basic information', async () => {
+test('get basic information', async () => {
   const ffmpeg = new FFmpeg()
   let info = await ffmpeg.getInformation('files/file.mp4')
 
@@ -24,15 +25,85 @@ xtest('get basic information', async () => {
 // todo: test with non-existent file
 test('get basic packet information', async () => {
   const ffmpeg = new FFmpeg()
-  let nbFrames = await ffmpeg.getPacketNumber()
+  let nbFrames = await ffmpeg.getPacketNumber('files/file.mp4')
 
   expect(nbFrames).toBe(3858)
 }, 60000)
 
-xtest('basic conversion', async () => {
+// test('basic conversion', (done) => {
+//   const ffmpeg = new FFmpeg()
+
+//   ffmpeg.convert('files/file.mp4', 'output/file_320x240.mp4', { width: 320, height: 240, codec: 'h264' })
+//         .subscribe({
+//           complete: () => {
+//             done()
+//           },
+//           error: () => {
+//             fail('error with conversion')
+//           }
+//         })
+// }, 15000)
+
+test('error converting because output path does not exists', (done) => {
   const ffmpeg = new FFmpeg()
-  // let info = await ffmpeg.getInformation('files/file.mp4')
 
-  await ffmpeg.convert()
+  // ensure output_path does not exists
+  ffmpeg.convert('files/file.mp4', 'files/invalid_output_path/file_320x240.mp4', { width: 320, height: 240, codec: 'h264' })
+        .subscribe({
+          complete: () => {
+            // done()
+            fail('This test must fail')
+          },
+          error: (e) => {
+            console.log(`error ${e}`);
+            done()
+            // fail('error with conversion')
+          }
+        })
+}, 15000)
 
-})
+test('error converting because input path does not exists', (done) => {
+  const ffmpeg = new FFmpeg()
+
+  // ensure output_path does not exists
+  ffmpeg.convert('files/invalid_input_path/file.mp4', 'files/output/file_320x240.mp4', { width: 320, height: 240, codec: 'h264' })
+        .subscribe({
+          complete: () => {
+            // done()
+            fail('This test must fail')
+          },
+          error: (e) => {
+            console.log(`error ${e}`);
+            done()
+            // fail('error with conversion')
+          }
+        })
+}, 15000)
+
+test('basic conversion', (done) => {
+  const ffmpeg = new FFmpeg()
+
+  let progress = 0
+  // ensure output_path does not exists
+  ffmpeg.convert('files/file.mp4', 'files/output/file_320x240.mp4', { width: 320, height: 240, codec: 'h264' })
+        .subscribe({
+          next: (value) => {
+            if ((value as number) < progress) {
+              fail('progress should be always positive')
+            }
+
+            progress = value as number
+          },
+          complete: () => {
+            if (progress >= 1) {
+              done()
+            } else {
+              fail('progress not complete')
+            }
+          },
+          error: (e) => {
+            console.log(`error ${e}`);
+            fail(e)
+          }
+        })
+}, 25000)
