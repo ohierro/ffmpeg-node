@@ -8,6 +8,7 @@ import { StreamInformation } from './stream-information'
 import { FileInformation } from './file-information';
 import { Observable } from 'rxjs';
 import { ConvertOptions } from './convert-options';
+import { subscribe } from 'diagnostics_channel';
 
 /**Class that does the ffmpeg transformations */
 export class FFmpeg {
@@ -263,6 +264,44 @@ export class FFmpeg {
         })
     }
 
+    createThumbnailsCarousel() {
+        //  ffmpeg -skip_frame nokey -i file.mp4 -vsync 0 -frame_pts true out%d.png
+    }
+
+    getImageThumbnailAt(inputPath: string, at: string, outputPath: string) {
+        // ffmpeg -i input.mp4 -ss 00:00:01.000 -vframes 1 output.png
+        return new Promise<void>((resolve, reject) => {
+            // ffmpeg -y -i file.mp4 test.mp4
+            const cmd = 'ffmpeg'
+            // ffprobe -v error -count_packets -select_streams v:0 -show_entries stream=nb_read_packets -of default=nokey=1:noprint_wrappers=1 files/file.mp4
+
+            const args = ['-v',
+                            'error',
+                            '-i',
+                            inputPath,
+                            '-ss',
+                            at,
+                            '-vframes',
+                            '1',
+                            '-y', // overwrite
+                            outputPath
+                        ]
+
+            const runProcess = child_process.spawn(cmd, args);
+            runProcess.stdin.setDefaultEncoding('utf-8');
+
+            let response = ''
+
+            runProcess.stderr.on('data', (data) => {
+                reject(data)
+            })
+
+            runProcess.on('exit', function (code, signal) {
+                resolve()
+            })
+        })
+    }
+
     /**Quits the FFmpeg process */
     quit(): void {
         // Send the `q` key
@@ -279,7 +318,7 @@ export class FFmpeg {
 }
 
 
-// new FFmpeg().convert()
+// new FFmpeg().convert('')
 //     .then(data => console.log(data))
 // new FFmpeg().convert('files/file.mp4', 'files/output/sample.mp4', { width: 640, height: 480, codec: 'h264' })
 //     .subscribe({

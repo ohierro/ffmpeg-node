@@ -1,6 +1,15 @@
 import exp = require("constants")
 import { FFmpeg } from "./ffmpeg"
 import { fail } from "assert"
+import * as fs from 'fs/promises'
+
+beforeAll(async () => {
+  try {
+    await fs.rmdir('files/output')
+    await fs.mkdir('files/output')
+    await fs.mkdir('files/output/img')
+  } catch (err) {}
+})
 
 test('get basic information', async () => {
   const ffmpeg = new FFmpeg()
@@ -107,3 +116,15 @@ test('basic conversion', (done) => {
           }
         })
 }, 25000)
+
+test('get basic thumbnail from video', async () => {
+  const ffmpeg = new FFmpeg()
+  const INPUT_PATH = 'files/file_1920x1080.mp4'
+  const OUTPUT_PATH = 'files/output/img/thumb_file_1920x1080.png'
+
+  let progress = 0
+
+  await ffmpeg.getImageThumbnailAt(INPUT_PATH, '00:01:36', OUTPUT_PATH)
+
+  console.log('test');
+}, 15000)
