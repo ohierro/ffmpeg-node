@@ -1,8 +1,8 @@
 import exp = require("constants")
 import { FFmpeg } from "./ffmpeg"
-import { fail } from "assert"
 import * as fs from 'fs/promises'
 import { lastValueFrom } from "rxjs"
+import { VideoStreamInformation } from "./stream-information"
 
 beforeEach(async () => {
   const files = await fs.readdir('files/output')
@@ -38,29 +38,8 @@ test('basic conversions to common sizes', async () => {
     let info = await ffmpeg.getInformation(outputPath)
 
     let videoStream = info.streams.filter(s => s.type === 'video')[0]
-    expect(videoStream.width).toBe(size[0])
-    expect(videoStream.height).toBe(size[1])
+    expect((videoStream as VideoStreamInformation).width).toBe(size[0])
+    expect((videoStream as VideoStreamInformation).height).toBe(size[1])
     expect(videoStream.codec).toBe('h264')
   }
 }, 600000)
-
-// test('basic conversions to 640x480 test', async () => {
-//   const ffmpeg = new FFmpeg()
-
-//   await lastValueFrom(
-//           ffmpeg.convert('files/file.mp4',
-//             'files/output/file_640x480.mp4',
-//             {
-//               width: 320,
-//               height: 240,
-//               codec: 'h264'
-//             })
-//         )
-
-//   let info = await ffmpeg.getInformation('files/output/file_320x240.mp4')
-
-//   let videoStream = info.streams.filter(s => s.type === 'video')[0]
-//   expect(videoStream.width).toBe(320)
-//   expect(videoStream.height).toBe(240)
-//   expect(videoStream.codec).toBe('h264')
-// }, 45000)

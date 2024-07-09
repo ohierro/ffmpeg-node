@@ -4,7 +4,7 @@ Simple TypeScript wrapper for FFmpeg CLI commands including the ability to stop 
 
 ## Installation
 
-`npm install --save @unaxiom/ffmpeg`
+`npm install --save @ohierro/ffmpeg`
 
 Needs to have `ffmpeg` installed and available in PATH
 
@@ -13,7 +13,7 @@ Needs to have `ffmpeg` installed and available in PATH
 - Import the module
 
 ```js
-import * as FFmpeg from '@unaxiom/ffmpeg';
+import * as FFmpeg from '@ohierro/ffmpeg';
 ```
 
 Or require the module

@@ -1,16 +1,17 @@
 {
   "name": "@ohierro/ffmpeg",
-  "version": "0.1.2",
-  "description": "FFmpeg CLI wrapper, including ability to quit the process",
+  "version": "0.1.3",
+  "description": "FFmpeg CLI wrapper for Nodejs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "test": "jest",
+    "test:audio": "jest -t 'AUDIO'",
     "build": "tsc -b"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Unaxiom/ffmpeg-node.git"
+    "url": "git+https://github.com/ohierro/ffmpeg-node"
   },
   "keywords": [
     "TypeScript",
@@ -20,12 +21,12 @@
     "stream",
     "JavaScript"
   ],
-  "author": "Pratheek Adidela",
+  "author": "Óliver Hierro",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Unaxiom/ffmpeg-node/issues"
+    "url": "https://github.com/ohierro/ffmpeg-node/issues"
   },
-  "homepage": "https://github.com/Unaxiom/ffmpeg-node#readme",
+  "homepage": "https://github.com/ohierro/ffmpeg-node#readme",
   "devDependencies": {
     "@babel/preset-env": "^7.23.3",
     "@babel/preset-typescript": "^7.23.3",
@@ -39,5 +40,8 @@
   "dependencies": {
     "@types/node": "^20.8.4",
     "rxjs": "^7.8.1"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
