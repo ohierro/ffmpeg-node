@@ -1,0 +1,6 @@
+export class AudioNormalization {
+    type: 'ebuR128'
+    inputI: number
+    inputLRA: number
+    inputTP: number
+}
