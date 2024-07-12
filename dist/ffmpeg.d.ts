@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import { ConvertOptions } from './convert-options';
 import { AudioConvertOptions } from './audio-convert-options';
 import { TranscodeProgressEvent } from './types/transcode-progress-event';
+import { AudioNormalizacionInformation } from './types/audio-normalization-information';
+import { AudioNormalization } from './types/audio-normalization';
 /**Class that does the ffmpeg transformations */
 export declare class FFmpeg {
     private options;
@@ -34,6 +36,7 @@ export declare class FFmpeg {
      * @param isVideo If input is audio, this should be false. Default: true
      */
     getStreamDuration(inputPath: string, isVideo?: boolean): Promise<number>;
+    getAudioInformation(inputPath: string, target: AudioNormalization): Promise<AudioNormalizacionInformation>;
     /**
      * Get the number of packets (length) of the `inputPath` file
      *
@@ -42,7 +45,9 @@ export declare class FFmpeg {
      */
     getPacketNumber(inputPath: string, isVideo?: boolean): Promise<number>;
     convert(inputPath: string, outputPath: string, options: ConvertOptions): Observable<Number>;
-    transcodeAudio(inputPath: string, outputPath: string, options: AudioConvertOptions): Observable<TranscodeProgressEvent>;
+    transcodeAudio(inputPath: string, outputPath: string, options: AudioConvertOptions, normalization?: AudioNormalization): Observable<TranscodeProgressEvent>;
+    getNormalizationValues(inputPath: string, normalization: AudioNormalization): Promise<AudioNormalizacionInformation>;
+    audioNormalize(inputPath: string, outptuPath: string): any;
     createThumbnailsCarousel(): void;
     getImageThumbnailAt(inputPath: string, at: string, outputPath: string): Promise<void>;
     private parseTimeToSeconds;

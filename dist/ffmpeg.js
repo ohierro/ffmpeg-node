@@ -10,6 +10,7 @@ const stream_information_1 = require("./stream-information");
 const file_information_1 = require("./file-information");
 const rxjs_1 = require("rxjs");
 const audio_conversion_types_1 = require("./types/audio-conversion-types");
+const normalize = require("ffmpeg-normalize");
 /**Class that does the ffmpeg transformations */
 class FFmpeg {
     constructor() {
@@ -154,6 +155,48 @@ class FFmpeg {
             });
         });
     }
+    getAudioInformation(inputPath, target) {
+        // -af loudnorm=I=-23:LRA=7:tp=-2:print_format=json -f null - 
+        return new Promise((resolve, reject) => {
+            const cmd = 'ffmpeg';
+            const args = [
+                '-i',
+                inputPath,
+                '-af',
+                `loudnorm=I=${target.inputI}:LRA=${target.inputLRA}:tp=${target.inputTP}:print_format=json`,
+                '-f', 'null',
+                '-'
+            ];
+            const runProcess = child_process.spawn(cmd, args);
+            runProcess.stdin.setDefaultEncoding('utf-8');
+            let response = '';
+            runProcess.stdout.on('data', (data) => {
+                response += data;
+            });
+            runProcess.stderr.on('data', (data) => {
+                // console.log('error' + data);
+                response += data.toString();
+                // response += 'my data'
+            });
+            runProcess.on('exit', function (code, signal) {
+                // resolve(Number.parseInt(response))
+                const output = response.split('\n');
+                console.log(`ourput to parse ${output.slice(output.length - 13)}`);
+                const data = JSON.parse(output.slice(output.length - 13).join(''));
+                resolve({
+                    inputI: Number(data['input_i']),
+                    inputLRA: Number(data['input_lra']),
+                    inputThresh: Number(data['input_thresh']),
+                    inputTP: Number(data['input_tp']),
+                    normalizationType: data['normalization_type'],
+                    targetOffset: Number(data['target_offset']),
+                    outputI: Number(data['output_i']),
+                    outputTP: Number(data['output_tp']),
+                    outputThresh: Number(data['output_thresh'])
+                });
+            });
+        });
+    }
     /**
      * Get the number of packets (length) of the `inputPath` file
      *
@@ -263,10 +306,13 @@ class FFmpeg {
             });
         });
     }
-    transcodeAudio(inputPath, outputPath, options) {
+    transcodeAudio(inputPath, outputPath, options, normalization) {
         return new rxjs_1.Observable((subscriber) => {
-            this.getStreamDuration(inputPath, false)
-                .then(duration => {
+            Promise.all([
+                this.getStreamDuration(inputPath, false),
+                this.getNormalizationValues(inputPath, normalization)
+            ])
+                .then(([duration, normalizationValues]) => {
                 console.log(`total packets ${duration}`);
                 const cmd = 'ffmpeg';
                 const argsVerbose = ['-v', 'error', '-progress', '-'];
@@ -274,6 +320,7 @@ class FFmpeg {
                 const argsOutput = ['-y', outputPath];
                 const argsCodec = ['-codec:a', options.codec];
                 const argsQuality = [];
+                const argsFilters = [];
                 if (options.type === audio_conversion_types_1.AudioConversionType.ConstantRate) {
                     if (options.bitrate === undefined)
                         throw new Error('Bitrate is mandatory when CBR is selected');
@@ -293,7 +340,15 @@ class FFmpeg {
                         '-ar', `${options.frequency}k`
                     ]);
                 }
-                const args = [...argsVerbose, ...argsInput, ...argsCodec, ...argsQuality, ...argsOutput];
+                if (normalization) {
+                    // const values = await this.getNormalizationValues(inputPath, normalization)
+                    let values = normalizationValues;
+                    argsFilters.push(...[
+                        '-af',
+                        `loudnorm=I=${normalization.inputI}:LRA=${normalization.inputLRA}:tp=${normalization.inputTP}:measured_I=${values.inputI}:measured_tp=${values.inputTP}:measured_thresh=${values.inputThresh}:offset=${values.targetOffset}`
+                    ]);
+                }
+                const args = [...argsVerbose, ...argsInput, ...argsCodec, ...argsQuality, ...argsFilters, ...argsOutput];
                 console.log(`spawn with ${args.join(' ')}`);
                 const runProcess = child_process.spawn(cmd, args);
                 runProcess.stdin.setDefaultEncoding('utf-8');
@@ -329,6 +384,41 @@ class FFmpeg {
                     subscriber.complete();
                 });
             });
+        });
+    }
+    async getNormalizationValues(inputPath, normalization) {
+        // -af loudnorm=I=-23:LRA=7:tp=-2:measured_I=-24.17:measured_LRA=6.1:measured_tp=-8.58:measured_thresh=-34.37:offset=-1.15
+        if (normalization === undefined) {
+            return null;
+        }
+        const information = await this.getAudioInformation(inputPath, normalization);
+        return information;
+    }
+    audioNormalize(inputPath, outptuPath) {
+        // -af loudnorm=I=-23:LRA=7:tp=-2:print_format=json -f null -
+        //         {
+        //         "input_i" : "-24.17",
+        //         "input_tp" : "-8.58",
+        //         "input_lra" : "6.10",
+        //         "input_thresh" : "-34.37",
+        //         "output_i" : "-21.85",
+        //         "output_tp" : "-6.09",
+        //         "output_lra" : "3.40",
+        //         "output_thresh" : "-32.02",
+        //         "normalization_type" : "dynamic",
+        //         "target_offset" : "-1.15"
+        // }
+        return normalize({
+            input: inputPath,
+            output: outptuPath,
+            loudness: {
+                normalization: 'ebuR128',
+                target: {
+                    input_i: -23,
+                    input_lra: 7.0,
+                    input_tp: -2.0
+                }
+            }
         });
     }
     createThumbnailsCarousel() {
@@ -387,21 +477,53 @@ class FFmpeg {
 }
 exports.FFmpeg = FFmpeg;
 // new FFmpeg().getInformation('files/output/sample_cbr_128_44100.mp3')
-// new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100.mp4', {
-//     type: AudioConversionType.ConstantRate,
-//     codec: AudioCodec.Mp3,
-//     bitrate: 320,
-//     frequency: 44.1
-// })  .subscribe({
-//     next: (e: TranscodeProgressEvent) => {
-//         // console.log('event' + e)
-//         console.log(`progress: ${e.percentage}`);
-//     },
-//     error: (e) => {
-//         console.log('error: ' + e);
-//     },
-//     complete: () => console.log('complete')
-// })
+// new FFmpeg()
+//     .audioNormalize('files/output/sample_cbr_320_44100.mp4', 'files/output/sample_cbr_320_44100_normalized.mp4')
+//     .then(normalized  => {
+//         console.log('normalizado');
+//     })
+//     .catch(error => {
+//         console.log('error');
+//     });
+new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100.mp4', {
+    type: audio_conversion_types_1.AudioConversionType.ConstantRate,
+    codec: audio_conversion_types_1.AudioCodec.Mp3,
+    bitrate: 320,
+    frequency: 44.1
+}).subscribe({
+    next: (e) => {
+        // console.log('event' + e)
+        console.log(`progress: ${e.percentage}`);
+    },
+    error: (e) => {
+        console.log('error: ' + e);
+    },
+    complete: () => console.log('complete')
+});
+new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.mp4', {
+    type: audio_conversion_types_1.AudioConversionType.ConstantRate,
+    codec: audio_conversion_types_1.AudioCodec.Mp3,
+    bitrate: 320,
+    frequency: 44.1
+}, {
+    type: 'ebuR128',
+    inputI: -23,
+    inputLRA: 7.0,
+    inputTP: -2
+}).subscribe({
+    next: (e) => {
+        // console.log('event' + e)
+        console.log(`progress: ${e.percentage}`);
+    },
+    error: (e) => {
+        console.log('error: ' + e);
+    },
+    complete: () => console.log('complete')
+});
+// new FFmpeg().getAudioInformation('files/output/sample_cbr_320_44100.mp4', { type: 'ebuR128', inputI: -23, inputLRA: 7, inputTP: -2})
+//     .then(data => {
+//         console.log(data);
+//     })
 // new FFmpeg().convert('')
 //     .then(data => console.log(data))
 // new FFmpeg().convert('files/file.mp4', 'files/output/sample.mp4', { width: 640, height: 480, codec: 'h264' })
