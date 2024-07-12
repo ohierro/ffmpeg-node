@@ -558,44 +558,44 @@ export class FFmpeg {
 //         console.log('error');
 //     });
 
-new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100.mp4', {
-    type: AudioConversionType.ConstantRate,
-    codec: AudioCodec.Mp3,
-    bitrate: 320,
-    frequency: 44.1
-})  .subscribe({
-    next: (e: TranscodeProgressEvent) => {
-        // console.log('event' + e)
-        console.log(`progress: ${e.percentage}`);
+// new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100.mp4', {
+//     type: AudioConversionType.ConstantRate,
+//     codec: AudioCodec.Mp3,
+//     bitrate: 320,
+//     frequency: 44.1
+// })  .subscribe({
+//     next: (e: TranscodeProgressEvent) => {
+//         // console.log('event' + e)
+//         console.log(`progress: ${e.percentage}`);
         
-    },
-    error: (e) => {
-        console.log('error: ' + e);
-    },
-    complete: () => console.log('complete')
-})
+//     },
+//     error: (e) => {
+//         console.log('error: ' + e);
+//     },
+//     complete: () => console.log('complete')
+// })
 
-new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.mp4', {
-    type: AudioConversionType.ConstantRate,
-    codec: AudioCodec.Mp3,
-    bitrate: 320,
-    frequency: 44.1
-}, {
-    type: 'ebuR128',
-    inputI: -23,
-    inputLRA: 7.0,
-    inputTP: -2
-})  .subscribe({
-    next: (e: TranscodeProgressEvent) => {
-        // console.log('event' + e)
-        console.log(`progress: ${e.percentage}`);
+// new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.mp4', {
+//     type: AudioConversionType.ConstantRate,
+//     codec: AudioCodec.Mp3,
+//     bitrate: 320,
+//     frequency: 44.1
+// }, {
+//     type: 'ebuR128',
+//     inputI: -23,
+//     inputLRA: 7.0,
+//     inputTP: -2
+// })  .subscribe({
+//     next: (e: TranscodeProgressEvent) => {
+//         // console.log('event' + e)
+//         console.log(`progress: ${e.percentage}`);
         
-    },
-    error: (e) => {
-        console.log('error: ' + e);
-    },
-    complete: () => console.log('complete')
-})
+//     },
+//     error: (e) => {
+//         console.log('error: ' + e);
+//     },
+//     complete: () => console.log('complete')
+// })
 
 // new FFmpeg().getAudioInformation('files/output/sample_cbr_320_44100.mp4', { type: 'ebuR128', inputI: -23, inputLRA: 7, inputTP: -2})
 //     .then(data => {

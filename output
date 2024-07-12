@@ -1,0 +1,4 @@
+
+> @ohierro/ffmpeg@0.1.3 test:audio
+> jest -t 'AUDIO'
+

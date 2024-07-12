@@ -10,7 +10,6 @@ const stream_information_1 = require("./stream-information");
 const file_information_1 = require("./file-information");
 const rxjs_1 = require("rxjs");
 const audio_conversion_types_1 = require("./types/audio-conversion-types");
-const normalize = require("ffmpeg-normalize");
 /**Class that does the ffmpeg transformations */
 class FFmpeg {
     constructor() {
@@ -181,7 +180,7 @@ class FFmpeg {
             runProcess.on('exit', function (code, signal) {
                 // resolve(Number.parseInt(response))
                 const output = response.split('\n');
-                console.log(`ourput to parse ${output.slice(output.length - 13)}`);
+                console.log(`output to parse ${output.slice(output.length - 13)}`);
                 const data = JSON.parse(output.slice(output.length - 13).join(''));
                 resolve({
                     inputI: Number(data['input_i']),
@@ -343,9 +342,13 @@ class FFmpeg {
                 if (normalization) {
                     // const values = await this.getNormalizationValues(inputPath, normalization)
                     let values = normalizationValues;
+                    // TODO: should we apply also :linear=true:??
+                    // see: https://k.ylo.ph/2016/04/04/loudnorm.html
+                    // We can then use these stats to call FFmpeg for a second time. Supplying the filter with these stats allow it to 
+                    // make more intelligent normalization decisions, as well as normalize linearly if possible.
                     argsFilters.push(...[
                         '-af',
-                        `loudnorm=I=${normalization.inputI}:LRA=${normalization.inputLRA}:tp=${normalization.inputTP}:measured_I=${values.inputI}:measured_tp=${values.inputTP}:measured_thresh=${values.inputThresh}:offset=${values.targetOffset}`
+                        `loudnorm=I=${normalization.inputI}:LRA=${normalization.inputLRA}:tp=${normalization.inputTP}:measured_I=${values.inputI}:measured_tp=${values.inputTP}:measured_thresh=${values.inputThresh}:offset=${values.targetOffset}:linear=true`
                     ]);
                 }
                 const args = [...argsVerbose, ...argsInput, ...argsCodec, ...argsQuality, ...argsFilters, ...argsOutput];
@@ -391,35 +394,7 @@ class FFmpeg {
         if (normalization === undefined) {
             return null;
         }
-        const information = await this.getAudioInformation(inputPath, normalization);
-        return information;
-    }
-    audioNormalize(inputPath, outptuPath) {
-        // -af loudnorm=I=-23:LRA=7:tp=-2:print_format=json -f null -
-        //         {
-        //         "input_i" : "-24.17",
-        //         "input_tp" : "-8.58",
-        //         "input_lra" : "6.10",
-        //         "input_thresh" : "-34.37",
-        //         "output_i" : "-21.85",
-        //         "output_tp" : "-6.09",
-        //         "output_lra" : "3.40",
-        //         "output_thresh" : "-32.02",
-        //         "normalization_type" : "dynamic",
-        //         "target_offset" : "-1.15"
-        // }
-        return normalize({
-            input: inputPath,
-            output: outptuPath,
-            loudness: {
-                normalization: 'ebuR128',
-                target: {
-                    input_i: -23,
-                    input_lra: 7.0,
-                    input_tp: -2.0
-                }
-            }
-        });
+        return this.getAudioInformation(inputPath, normalization);
     }
     createThumbnailsCarousel() {
         //  ffmpeg -skip_frame nokey -i file.mp4 -vsync 0 -frame_pts true out%d.png
@@ -485,41 +460,41 @@ exports.FFmpeg = FFmpeg;
 //     .catch(error => {
 //         console.log('error');
 //     });
-new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100.mp4', {
-    type: audio_conversion_types_1.AudioConversionType.ConstantRate,
-    codec: audio_conversion_types_1.AudioCodec.Mp3,
-    bitrate: 320,
-    frequency: 44.1
-}).subscribe({
-    next: (e) => {
-        // console.log('event' + e)
-        console.log(`progress: ${e.percentage}`);
-    },
-    error: (e) => {
-        console.log('error: ' + e);
-    },
-    complete: () => console.log('complete')
-});
-new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.mp4', {
-    type: audio_conversion_types_1.AudioConversionType.ConstantRate,
-    codec: audio_conversion_types_1.AudioCodec.Mp3,
-    bitrate: 320,
-    frequency: 44.1
-}, {
-    type: 'ebuR128',
-    inputI: -23,
-    inputLRA: 7.0,
-    inputTP: -2
-}).subscribe({
-    next: (e) => {
-        // console.log('event' + e)
-        console.log(`progress: ${e.percentage}`);
-    },
-    error: (e) => {
-        console.log('error: ' + e);
-    },
-    complete: () => console.log('complete')
-});
+// new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100.mp4', {
+//     type: AudioConversionType.ConstantRate,
+//     codec: AudioCodec.Mp3,
+//     bitrate: 320,
+//     frequency: 44.1
+// })  .subscribe({
+//     next: (e: TranscodeProgressEvent) => {
+//         // console.log('event' + e)
+//         console.log(`progress: ${e.percentage}`);
+//     },
+//     error: (e) => {
+//         console.log('error: ' + e);
+//     },
+//     complete: () => console.log('complete')
+// })
+// new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.mp4', {
+//     type: AudioConversionType.ConstantRate,
+//     codec: AudioCodec.Mp3,
+//     bitrate: 320,
+//     frequency: 44.1
+// }, {
+//     type: 'ebuR128',
+//     inputI: -23,
+//     inputLRA: 7.0,
+//     inputTP: -2
+// })  .subscribe({
+//     next: (e: TranscodeProgressEvent) => {
+//         // console.log('event' + e)
+//         console.log(`progress: ${e.percentage}`);
+//     },
+//     error: (e) => {
+//         console.log('error: ' + e);
+//     },
+//     complete: () => console.log('complete')
+// })
 // new FFmpeg().getAudioInformation('files/output/sample_cbr_320_44100.mp4', { type: 'ebuR128', inputI: -23, inputLRA: 7, inputTP: -2})
 //     .then(data => {
 //         console.log(data);
