@@ -1,2 +1,2 @@
 export { FFmpeg } from './ffmpeg';
-export { StreamInformation } from './stream-information';
+export { StreamInformation, AudioStreamInformation, VideoStreamInformation } from './stream-information';
