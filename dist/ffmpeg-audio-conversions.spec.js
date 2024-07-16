@@ -12,7 +12,7 @@ beforeEach(async () => {
     }
 });
 // http://samples.mplayerhq.hu/
-xtest('AUDIO basic conversion wav to mp3 (CBR)', async () => {
+test('AUDIO basic conversion wav to mp3 (CBR)', async () => {
     const ffmpeg = new ffmpeg_1.FFmpeg();
     let conversions = [
         // 44100 Hz
@@ -39,7 +39,7 @@ xtest('AUDIO basic conversion wav to mp3 (CBR)', async () => {
         expect(Math.floor(info.streams[0].bitRate / 1000)).toBeCloseTo(conversion[0]);
     }
 }, 600000);
-xtest('AUDIO basic conversion wav to mp3 (VBR)', async () => {
+test('AUDIO basic conversion wav to mp3 (VBR)', async () => {
     const ffmpeg = new ffmpeg_1.FFmpeg();
     let conversions = [
         // 44100 Hz
@@ -111,7 +111,8 @@ test('AUDIO basic conversion wav to mp3 (CBR) with basic normalization', async (
         }, normalizationValues));
         let info = await ffmpeg.getInformation(outputPath);
         console.log(`info ${info}`);
-        let normalizationInfo = await ffmpeg.getNormalizationValues(outputPath, normalizationValues);
+        // let normalizationInfo = await ffmpeg.getNormalizationValues(outputPath, normalizationValues)
+        let normalizationInfo = await (0, rxjs_1.lastValueFrom)(ffmpeg.getAudioInformation(outputPath, normalizationValues));
         // output format should not be changed
         expect(info.streams.length).toBe(1);
         expect(info.streams[0]).toBeInstanceOf(stream_information_1.AudioStreamInformation);

@@ -1,5 +1,5 @@
-export interface TranscodeProgressEvent {
+export declare class TranscodeProgressEvent {
     total: number;
-    current: number;
     percentage: number;
+    stage: string;
 }

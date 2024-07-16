@@ -36,7 +36,7 @@ export declare class FFmpeg {
      * @param isVideo If input is audio, this should be false. Default: true
      */
     getStreamDuration(inputPath: string, isVideo?: boolean): Promise<number>;
-    getAudioInformation(inputPath: string, target: AudioNormalization): Promise<AudioNormalizacionInformation>;
+    getAudioInformation(inputPath: string, target: AudioNormalization): Observable<TranscodeProgressEvent | AudioNormalizacionInformation>;
     /**
      * Get the number of packets (length) of the `inputPath` file
      *
@@ -46,7 +46,7 @@ export declare class FFmpeg {
     getPacketNumber(inputPath: string, isVideo?: boolean): Promise<number>;
     convert(inputPath: string, outputPath: string, options: ConvertOptions): Observable<Number>;
     transcodeAudio(inputPath: string, outputPath: string, options: AudioConvertOptions, normalization?: AudioNormalization): Observable<TranscodeProgressEvent>;
-    getNormalizationValues(inputPath: string, normalization: AudioNormalization): Promise<AudioNormalizacionInformation>;
+    private _transcodeAudio;
     createThumbnailsCarousel(): void;
     getImageThumbnailAt(inputPath: string, at: string, outputPath: string): Promise<void>;
     private parseTimeToSeconds;

@@ -15,7 +15,7 @@ beforeEach(async () => {
 
 
 // http://samples.mplayerhq.hu/
-xtest('AUDIO basic conversion wav to mp3 (CBR)', async () => {
+test('AUDIO basic conversion wav to mp3 (CBR)', async () => {
   const ffmpeg = new FFmpeg()
 
   let conversions = [
@@ -49,7 +49,7 @@ xtest('AUDIO basic conversion wav to mp3 (CBR)', async () => {
   }
 }, 600000)
 
-xtest('AUDIO basic conversion wav to mp3 (VBR)', async () => {
+test('AUDIO basic conversion wav to mp3 (VBR)', async () => {
   const ffmpeg = new FFmpeg()
 
   let conversions = [
@@ -137,7 +137,8 @@ test('AUDIO basic conversion wav to mp3 (CBR) with basic normalization', async (
     let info = await ffmpeg.getInformation(outputPath)
     console.log(`info ${info}`);
 
-    let normalizationInfo = await ffmpeg.getNormalizationValues(outputPath, normalizationValues)
+    // let normalizationInfo = await ffmpeg.getNormalizationValues(outputPath, normalizationValues)
+    let normalizationInfo = await lastValueFrom(ffmpeg.getAudioInformation(outputPath, normalizationValues))
 
     // output format should not be changed
     expect(info.streams.length).toBe(1)
