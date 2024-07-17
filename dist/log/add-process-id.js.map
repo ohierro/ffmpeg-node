@@ -1,0 +1,1 @@
+{"version":3,"file":"add-process-id.js","sourceRoot":"","sources":["../../src/log/add-process-id.ts"],"names":[],"mappings":";;AAAA,mCAAoC;AAEpC,MAAM,YAAY,GAAG,OAAO,CAAC,MAAM,CAAC,CAAC,IAAI,EAAE,EAAE;IACzC,IAAI,CAAC,GAAG,GAAG,OAAO,CAAC,GAAG,CAAC;IACvB,OAAO,IAAI,CAAC;AACd,CAAC,CAAC,CAAC;AAEL,kBAAe,YAAY,CAAA;AAC3B,4BAA4B"}

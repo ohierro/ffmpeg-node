@@ -10,60 +10,80 @@ const stream_information_1 = require("./stream-information");
 const file_information_1 = require("./file-information");
 const rxjs_1 = require("rxjs");
 const audio_conversion_types_1 = require("./types/audio-conversion-types");
+const winston_1 = require("winston");
+const add_process_id_1 = require("./log/add-process-id");
 /**Class that does the ffmpeg transformations */
 class FFmpeg {
     constructor() {
         this.options = [];
         this.outputFilename = "";
-    }
-    /**Adds a list of CLI options to the process */
-    addOptions(optionsList) {
-        optionsList.forEach(option => {
-            this.options.push(option);
+        this.logger = (0, winston_1.createLogger)({
+            transports: [
+                new winston_1.transports.Console()
+            ],
+            defaultMeta: { service: 'ffmpeg-node' },
+            format: winston_1.format.combine((0, add_process_id_1.default)(), winston_1.format.timestamp(), winston_1.format.json()),
+            level: 'debug'
+            // format: format.combine(
+            //   format.timestamp(),
+            //   format.printf(({ timestamp, level, message, service }) => {
+            //     return `[${timestamp}] ${service} ${level}: ${message}`;
+            //   })
+            // ),
+            // defaultMeta: {
+            //   service: "WinstonExample",
+            // },
         });
     }
-    /**Adds a single CLI option to the list */
-    addOption(option) {
-        this.options.push(option);
-    }
-    /**Sets the output file name */
-    setOutputFile(filename) {
-        this.outputFilename = filename;
-    }
-    /**Sets the callback function that is called once the process exits on quits. The first argument to the
-     * callback is the exit code (number) and the second argument is the signal (string).
-    */
-    setOnCloseCallback(callbackFunc) {
-        this.runProcess.on('exit', function (code, signal) {
-            callbackFunc(code, signal);
-        });
-    }
-    setOutputCallback(customOutput) {
-        this.customOutput = customOutput;
-    }
-    /**Returns the arguments */
-    returnCLIArgs() {
-        if (this.outputFilename != "") {
-            let temp = this.options;
-            temp.push(this.outputFilename);
-            return temp;
-        }
-        return this.options;
-    }
-    /**Begins the FFmpeg process. Accepts an optional silent boolean value which supresses the output */
-    run(silent) {
-        // Run the command here
-        this.runProcess = child_process.spawn('ffmpeg', this.returnCLIArgs());
-        this.runProcess.stdin.setDefaultEncoding('utf-8');
-        if (this.customOutput) {
-            this.runProcess.stdout.pipe(this.customOutput);
-        }
-        if (!silent) {
-            this.runProcess.stdout.pipe(process.stderr);
-            this.runProcess.stderr.pipe(process.stderr);
-        }
-    }
+    // /**Adds a list of CLI options to the process */
+    // addOptions(optionsList: string[]): void {
+    //     optionsList.forEach(option => {
+    //         this.options.push(option);
+    //     });
+    // }
+    // /**Adds a single CLI option to the list */
+    // addOption(option: string): void {
+    //     this.options.push(option);
+    // }
+    // /**Sets the output file name */
+    // setOutputFile(filename: string): void {
+    //     this.outputFilename = filename;
+    // }
+    // /**Sets the callback function that is called once the process exits on quits. The first argument to the
+    //  * callback is the exit code (number) and the second argument is the signal (string).
+    // */
+    // setOnCloseCallback(callbackFunc: Function): void {
+    //     this.runProcess.on('exit', function (code, signal) {
+    //         callbackFunc(code, signal);
+    //     });
+    // }
+    // setOutputCallback(customOutput: NodeJS.WritableStream) {
+    //     this.customOutput = customOutput;
+    // }
+    // /**Returns the arguments */
+    // private returnCLIArgs(): string[] {
+    //     if (this.outputFilename != "") {
+    //         let temp = this.options;
+    //         temp.push(this.outputFilename);
+    //         return temp;
+    //     }
+    //     return this.options;
+    // }
+    // /**Begins the FFmpeg process. Accepts an optional silent boolean value which supresses the output */
+    // run(silent?: boolean): void {
+    //     // Run the command here
+    //     this.runProcess = child_process.spawn('ffmpeg', this.returnCLIArgs());
+    //     this.runProcess.stdin.setDefaultEncoding('utf-8');
+    //     if (this.customOutput) {
+    //         this.runProcess.stdout.pipe(this.customOutput);
+    //     }
+    //     if (!silent) {
+    //         this.runProcess.stdout.pipe(process.stderr);
+    //         this.runProcess.stderr.pipe(process.stderr);
+    //     }
+    // }
     getInformation(absolutePath) {
+        this.logger.info(`getInformation :: call with ${absolutePath}`);
         return new Promise((resolve, reject) => {
             const cmd = 'ffprobe';
             const args = ['-v',
@@ -78,44 +98,54 @@ class FFmpeg {
                 'json',
                 // 'csv=s=x:p=0',
                 absolutePath];
+            this.logger.debug(`getInformation :: spawn ${cmd} with ${args.join(' ')}`);
             const runProcess = child_process.spawn(cmd, args);
             runProcess.stdin.setDefaultEncoding('utf-8');
             let response = '';
             runProcess.stdout.on('data', (data) => {
                 response += data;
             });
-            runProcess.on('exit', function (code, signal) {
-                console.log('output resolution: ' + response);
-                const jsonResponse = JSON.parse(response);
-                const fileInfo = new file_information_1.FileInformation();
-                fileInfo.duration = Number.parseFloat(jsonResponse.format.duration),
-                    fileInfo.formatName = jsonResponse.format.format_name,
-                    fileInfo.formatLongName = jsonResponse.format.format_long_name;
-                fileInfo.streams = [];
-                for (let jsonStream of jsonResponse.streams) {
-                    let streamInfo;
-                    if (jsonStream.codec_type === 'audio') {
-                        const audioInfo = new stream_information_1.AudioStreamInformation();
-                        audioInfo.type = 'audio';
-                        audioInfo.codec = jsonStream.codec_name;
-                        audioInfo.bitRate = Number(jsonStream.bit_rate);
-                        audioInfo.frequency = Number(jsonStream.sample_rate);
-                        streamInfo = audioInfo;
+            runProcess.on('exit', (code, signal) => {
+                // console.log('output resolution: ' + response);
+                this.logger.debug(`getInformation :: output information ${response}`);
+                try {
+                    const jsonResponse = JSON.parse(response);
+                    const fileInfo = new file_information_1.FileInformation();
+                    fileInfo.duration = Number.parseFloat(jsonResponse.format.duration),
+                        fileInfo.formatName = jsonResponse.format.format_name,
+                        fileInfo.formatLongName = jsonResponse.format.format_long_name;
+                    fileInfo.streams = [];
+                    this.logger.debug(`getInformation :: streams ${jsonResponse.streams.length}`);
+                    for (let jsonStream of jsonResponse.streams) {
+                        let streamInfo;
+                        this.logger.debug(`getInformation :: stream type ${jsonStream.codec_type}`);
+                        if (jsonStream.codec_type === 'audio') {
+                            const audioInfo = new stream_information_1.AudioStreamInformation();
+                            audioInfo.type = 'audio';
+                            audioInfo.codec = jsonStream.codec_name;
+                            audioInfo.bitRate = Number(jsonStream.bit_rate);
+                            audioInfo.frequency = Number(jsonStream.sample_rate);
+                            streamInfo = audioInfo;
+                        }
+                        else {
+                            const videoStreamInfo = new stream_information_1.VideoStreamInformation();
+                            videoStreamInfo.type = jsonStream.codec_type;
+                            videoStreamInfo.width = jsonStream.width;
+                            videoStreamInfo.height = jsonStream.height;
+                            videoStreamInfo.codec = jsonStream.codec_name;
+                            // if (streamInfo.type === 'video') {
+                            videoStreamInfo.aspect_ratio = jsonStream.display_aspect_ratio;
+                            // }
+                            streamInfo = videoStreamInfo;
+                        }
+                        this.logger.debug(`getInformation :: stream parsed ${streamInfo}`);
+                        fileInfo.streams.push(streamInfo);
                     }
-                    else {
-                        const videoStreamInfo = new stream_information_1.VideoStreamInformation();
-                        videoStreamInfo.type = jsonStream.codec_type;
-                        videoStreamInfo.width = jsonStream.width;
-                        videoStreamInfo.height = jsonStream.height;
-                        videoStreamInfo.codec = jsonStream.codec_name;
-                        // if (streamInfo.type === 'video') {
-                        videoStreamInfo.aspect_ratio = jsonStream.display_aspect_ratio;
-                        // }
-                        streamInfo = videoStreamInfo;
-                    }
-                    fileInfo.streams.push(streamInfo);
+                    resolve(fileInfo);
                 }
-                resolve(fileInfo);
+                catch (error) {
+                    reject(error);
+                }
             });
         });
     }
@@ -126,6 +156,7 @@ class FFmpeg {
      * @param isVideo If input is audio, this should be false. Default: true
      */
     getStreamDuration(inputPath, isVideo = true) {
+        this.logger.info(`getStreamDuration :: call with ${inputPath}, ${isVideo}`);
         return new Promise((resolve, reject) => {
             const cmd = 'ffprobe';
             const args = ['-v',
@@ -140,68 +171,26 @@ class FFmpeg {
                 'default=nokey=1:noprint_wrappers=1',
                 inputPath,
             ];
+            this.logger.info(`getStreamDuration :: spawn ${cmd} with ${args}`);
             const runProcess = child_process.spawn(cmd, args);
             runProcess.stdin.setDefaultEncoding('utf-8');
             let response = '';
             runProcess.stdout.on('data', (data) => {
                 response += data;
+                this.logger.verbose(`getStreamDuration :: data`);
             });
             runProcess.stderr.on('data', (data) => {
-                console.log('error' + data);
+                // console.log('error' + data);
+                this.logger.verbose(`getStreamDuration :: stderr ${data}`);
             });
-            runProcess.on('exit', function (code, signal) {
+            runProcess.on('exit', (code, signal) => {
+                this.logger.debug(`getStreamDuration :: resolve with ${response}`);
                 resolve(Number.parseInt(response));
             });
         });
     }
-    // getAudioInformation(inputPath: string, target: AudioNormalization): Promise<AudioNormalizacionInformation> {
-    //     // -af loudnorm=I=-23:LRA=7:tp=-2:print_format=json -f null - 
-    //     return new Promise((resolve, reject) => {
-    //         const cmd = 'ffmpeg'
-    //         // const argsVerbose = ['-v', 'error', '-progress','-']
-    //         const args = [
-    //             '-v',
-    //             'error',
-    //             '-progress',
-    //             '-',
-    //             '-i',
-    //             inputPath,
-    //             '-af',
-    //             `loudnorm=I=${target.inputI}:LRA=${target.inputLRA}:tp=${target.inputTP}:print_format=json`,
-    //             '-f', 'null',
-    //             '-'
-    //         ]
-    //         const runProcess = child_process.spawn(cmd, args);
-    //         runProcess.stdin.setDefaultEncoding('utf-8');
-    //         let response = ''
-    //         runProcess.stdout.on('data', (data) => {
-    //             response += data
-    //         })
-    //         runProcess.stderr.on('data', (data) => {
-    //             // console.log('error' + data);
-    //             response += data.toString()
-    //             // response += 'my data'
-    //         })
-    //         runProcess.on('exit', function (code, signal) {
-    //             // resolve(Number.parseInt(response))
-    //             const output = response.split('\n')
-    //             console.log(`output to parse ${output.slice(output.length-13)}`);
-    //             const data = JSON.parse(output.slice(output.length-13).join(''))
-    //             resolve({
-    //                 inputI: Number(data['input_i']),
-    //                 inputLRA: Number(data['input_lra']),
-    //                 inputThresh: Number(data['input_thresh']),
-    //                 inputTP: Number(data['input_tp']),
-    //                 normalizationType: data['normalization_type'],
-    //                 targetOffset: Number(data['target_offset']),
-    //                 outputI: Number(data['output_i']),
-    //                 outputTP: Number(data['output_tp']),
-    //                 outputThresh: Number(data['output_thresh'])
-    //              })
-    //         })
-    //     })
-    // }
     getAudioInformation(inputPath, target) {
+        this.logger.info(`getAudioInformation :: call with ${inputPath}, ${target}`);
         return new rxjs_1.Observable((subscriber) => {
             this.getStreamDuration(inputPath, false)
                 .then(duration => {
@@ -216,16 +205,16 @@ class FFmpeg {
                     '-f', 'null',
                     '-'
                 ];
-                console.log(`spawn with ${args.join(' ')}`);
+                this.logger.info(`getAudioInformation :: spawn ${cmd} with ${args.join(' ')}`);
                 const runProcess = child_process.spawn(cmd, args);
                 runProcess.stdin.setDefaultEncoding('utf-8');
                 let response = '';
-                let lastTime = -1;
                 runProcess.stdout.on('data', (data) => {
                     const pattern = /out_time=(?<currentTime>.*)/;
                     const match = pattern.exec(data.toString());
                     if (match) {
                         const { currentTime } = match.groups;
+                        this.logger.info(`getAudioInformation :: currentTime ${currentTime}`);
                         subscriber.next({
                             total: duration,
                             percentage: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
@@ -235,9 +224,11 @@ class FFmpeg {
                 runProcess.stderr.on('data', (data) => {
                     response += data.toString();
                 });
-                runProcess.on('exit', function (code, signal) {
+                runProcess.on('exit', (code, signal) => {
+                    this.logger.debug(`getAudioInformation :: end of process`);
                     const output = response.split('\n');
-                    console.log(`output to parse ${output.slice(output.length - 13)}`);
+                    // console.log(`output to parse ${output.slice(output.length-13)}`);
+                    this.logger.debug(`getAudioInformation :: output to parse ${output.slice(output.length - 13)}`);
                     const data = JSON.parse(output.slice(output.length - 13).join(''));
                     subscriber.next({
                         inputI: Number(data['input_i']),
@@ -262,11 +253,8 @@ class FFmpeg {
      * @returns A Promise resolved with the number of packets of the file
      */
     getPacketNumber(inputPath, isVideo = true) {
-        // console.log('new promise');
         return new Promise((resolve, reject) => {
-            // ffmpeg -y -i file.mp4 test.mp4
             const cmd = 'ffprobe';
-            // ffprobe -v error -count_packets -select_streams v:0 -show_entries stream=nb_read_packets -of default=nokey=1:noprint_wrappers=1 files/file.mp4
             const args = ['-v',
                 'error',
                 '-count_packets',
@@ -279,7 +267,6 @@ class FFmpeg {
                 'default=nokey=1:noprint_wrappers=1',
                 inputPath,
             ];
-            // console.log('spawn: ');
             const runProcess = child_process.spawn(cmd, args);
             runProcess.stdin.setDefaultEncoding('utf-8');
             let response = '';
@@ -288,13 +275,9 @@ class FFmpeg {
                 // console.log('data' + data);
             });
             runProcess.stderr.on('data', (data) => {
-                // response += data
                 // console.log('error' + data);
             });
             runProcess.on('exit', function (code, signal) {
-                // console.log('response ' + response);
-                // console.log(code);
-                // console.log(signal);
                 resolve(Number.parseInt(response));
             });
         });
@@ -364,105 +347,24 @@ class FFmpeg {
             });
         });
     }
-    // transcodeAudio(inputPath: string, outputPath: string, options: AudioConvertOptions, normalization?: AudioNormalization): Observable<TranscodeProgressEvent> {
-    //     return new Observable((subscriber) => {
-    //         Promise.all([
-    //             this.getStreamDuration(inputPath, false),
-    //             this.getNormalizationValues(inputPath, normalization)
-    //         ])
-    //             .then(([duration, normalizationValues]) => {
-    //                 console.log(`total packets ${duration}`)
-    //                 const cmd = 'ffmpeg'
-    //                 const argsVerbose = ['-v', 'error', '-progress','-']
-    //                 const argsInput = ['-i', inputPath]
-    //                 const argsOutput = ['-y', outputPath]
-    //                 const argsCodec = ['-codec:a', options.codec]
-    //                 const argsQuality = []
-    //                 const argsFilters = []
-    //                 if (options.type === AudioConversionType.ConstantRate) {
-    //                     if (options.bitrate === undefined) throw new Error('Bitrate is mandatory when CBR is selected')
-    //                     argsQuality.push(...[
-    //                         '-b:a', `${options.bitrate}k`
-    //                     ])
-    //                 } else {
-    //                     if (options.quality === undefined) throw new Error('Quality is mandatory when VBR is selected')
-    //                     argsQuality.push(...[
-    //                         '-q:a', options.quality
-    //                     ])
-    //                 }
-    //                 if (options.frequency) {
-    //                     argsQuality.push(...[
-    //                         '-ar', `${options.frequency}k`
-    //                     ])
-    //                 }
-    //                 if (normalization) {
-    //                     // const values = await this.getNormalizationValues(inputPath, normalization)
-    //                     let values = normalizationValues
-    //                     // TODO: should we apply also :linear=true:??
-    //                     // see: https://k.ylo.ph/2016/04/04/loudnorm.html
-    //                     // We can then use these stats to call FFmpeg for a second time. Supplying the filter with these stats allow it to 
-    //                     // make more intelligent normalization decisions, as well as normalize linearly if possible.
-    //                     argsFilters.push(...[
-    //                         '-af',
-    //                         `loudnorm=I=${normalization.inputI}:LRA=${normalization.inputLRA}:tp=${normalization.inputTP}:measured_I=${values.inputI}:measured_tp=${values.inputTP}:measured_thresh=${values.inputThresh}:offset=${values.targetOffset}:linear=true`
-    //                     ])
-    //                 }
-    //                 const args = [...argsVerbose, ...argsInput, ...argsCodec, ...argsQuality, ...argsFilters, ...argsOutput]
-    //                 console.log(`spawn with ${args.join(' ')}`);
-    //                 const runProcess = child_process.spawn(cmd, args);
-    //                 runProcess.stdin.setDefaultEncoding('utf-8');
-    //                 let response = ''
-    //                 runProcess.stdout.on('data', (data) => {
-    //                     // console.log(data.toString());
-    //                     const pattern = /out_time=(?<currentTime>.*)/
-    //                     const match = pattern.exec(data.toString())
-    //                     if (match) {
-    //                         const { currentTime } = match.groups
-    //                         // console.log(`time ${currentTime}`);
-    //                         // console.log(`time in seconds: ${this.parseTimeToSeconds(currentTime)}`)
-    //                         // console.log(`percentage ${this.parseTimeToSeconds(currentTime)/duration}`);
-    //                         subscriber.next({
-    //                             total: duration,
-    //                             current: this.parseTimeToSeconds(currentTime),
-    //                             percentage: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
-    //                         })
-    //                     }
-    //                 })
-    //                 runProcess.stderr.on('data', (data) => {
-    //                     subscriber.error(data.toString())
-    //                     runProcess.kill()
-    //                 })
-    //                 runProcess.on('message', function(code, signal) {
-    //                     console.log(`message ${code}, ${signal}`);
-    //                 })
-    //                 runProcess.on('error', function(code, signal) {
-    //                     console.log(`error ${code}, ${signal}`);
-    //                 })
-    //                 runProcess.on('exit', function (code, signal) {
-    //                     console.log('exit');
-    //                     subscriber.complete()
-    //                 })
-    //             })
-    //     })
-    // }
     transcodeAudio(inputPath, outputPath, options, normalization) {
+        this.logger.info(`transcodeAudio :: call with ${inputPath} - ${outputPath}`);
         return new rxjs_1.Observable((subscriber) => {
             const durationObsv = (0, rxjs_1.from)(this.getStreamDuration(inputPath));
             const normalizationObsv = this.getAudioInformation(inputPath, normalization);
             this.getStreamDuration(inputPath)
                 .then(duration => {
+                this.logger.debug(`transcodeAudio :: stream duration ${duration}`);
                 if (normalization) {
+                    this.logger.debug(`transcodeAudio :: normalization enabled`);
                     let normalizationInformation = null;
                     let lastPercentage = -1;
                     this.getAudioInformation(inputPath, normalization)
-                        // .pipe(
-                        //     map(event => {
-                        //     }
-                        // ))
                         .subscribe({
                         next: (event) => {
                             if ('percentage' in event) {
                                 let currentPercentage = Math.floor(event.percentage / 2);
+                                this.logger.verbose(`transcodeAudio :: currentPercenage ${currentPercentage}`);
                                 if (currentPercentage > lastPercentage) {
                                     subscriber.next({
                                         percentage: event.percentage,
@@ -473,16 +375,19 @@ class FFmpeg {
                                 }
                             }
                             else {
+                                this.logger.debug(`transcodeAudio :: normalizationInformation = ${JSON.stringify(event)}`);
                                 normalizationInformation = event;
                             }
                         },
                         complete: () => {
                             // do transcode
                             lastPercentage = -1;
+                            this.logger.debug(`transcodeAudio :: normalization information completed`);
                             this._transcodeAudio(inputPath, outputPath, options, duration, normalization, normalizationInformation)
                                 .subscribe({
                                 next: (event) => {
                                     let currentPercentage = Math.floor(event.percentage / 2);
+                                    this.logger.verbose(`transcodeAudio :: currentPercenage ${currentPercentage}`);
                                     if (currentPercentage > lastPercentage) {
                                         subscriber.next({
                                             percentage: event.percentage,
@@ -493,6 +398,7 @@ class FFmpeg {
                                     }
                                 },
                                 complete: () => {
+                                    this.logger.debug(`transcodeAudio :: transcode complete`);
                                     subscriber.complete();
                                 }
                             });
@@ -500,7 +406,7 @@ class FFmpeg {
                     });
                 }
                 else {
-                    // do transcode
+                    this.logger.debug(`transcodeAudio :: normalization disabled`);
                     this._transcodeAudio(inputPath, outputPath, options, duration)
                         .subscribe({
                         next: (event) => {
@@ -513,15 +419,9 @@ class FFmpeg {
                 }
             });
         });
-        // const transcodeObser = this._transcodeAudio(inputPath, outputPath, )
-        // if (normalization) {
-        // }
-        // concat([
-        //     durationObsv,
-        //     normalizationObsv
-        // ])
     }
     _transcodeAudio(inputPath, outputPath, options, duration, normalization, normalizationValues) {
+        this.logger.debug(`_transcodeAudio :: call`);
         return new rxjs_1.Observable((subscriber) => {
             const cmd = 'ffmpeg';
             const argsVerbose = ['-v', 'error', '-progress', '-'];
@@ -550,7 +450,6 @@ class FFmpeg {
                 ]);
             }
             if (normalization) {
-                // const values = await this.getNormalizationValues(inputPath, normalization)
                 let values = normalizationValues;
                 // TODO: should we apply also :linear=true:??
                 // see: https://k.ylo.ph/2016/04/04/loudnorm.html
@@ -562,19 +461,15 @@ class FFmpeg {
                 ]);
             }
             const args = [...argsVerbose, ...argsInput, ...argsCodec, ...argsQuality, ...argsFilters, ...argsOutput];
-            console.log(`spawn with ${args.join(' ')}`);
+            this.logger.debug(`_transcodeAudio :: span with ${args.join(' ')}`);
             const runProcess = child_process.spawn(cmd, args);
             runProcess.stdin.setDefaultEncoding('utf-8');
-            let response = '';
             runProcess.stdout.on('data', (data) => {
-                // console.log(data.toString());
                 const pattern = /out_time=(?<currentTime>.*)/;
                 const match = pattern.exec(data.toString());
                 if (match) {
                     const { currentTime } = match.groups;
-                    // console.log(`time ${currentTime}`);
-                    // console.log(`time in seconds: ${this.parseTimeToSeconds(currentTime)}`)
-                    // console.log(`percentage ${this.parseTimeToSeconds(currentTime)/duration}`);
+                    this.logger.verbose(`_transcodeAudio :: currentTime ${currentTime}`);
                     subscriber.next({
                         total: duration,
                         percentage: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
@@ -583,28 +478,24 @@ class FFmpeg {
                 }
             });
             runProcess.stderr.on('data', (data) => {
-                subscriber.error(data.toString());
+                this.logger.error(`_transcodeAudio :: error transcoding by stderr info: ${data}`);
+                subscriber.error({ msg: data.toString() });
                 runProcess.kill();
             });
-            runProcess.on('message', function (code, signal) {
-                console.log(`message ${code}, ${signal}`);
+            runProcess.on('message', (code, signal) => {
+                this.logger.verbose(`_transcodeAudio :: message: ${code} - ${signal}`);
             });
-            runProcess.on('error', function (code, signal) {
-                console.log(`error ${code}, ${signal}`);
+            runProcess.on('error', (code, signal) => {
+                this.logger.error(`_transcodeAudio :: error transcoding: ${code} - ${signal}`);
+                subscriber.error({ code, signal });
+                runProcess.kill();
             });
-            runProcess.on('exit', function (code, signal) {
-                console.log('exit');
+            runProcess.on('exit', (code, signal) => {
+                this.logger.debug(`_transcodeAudio :: end transcoding`);
                 subscriber.complete();
             });
         });
     }
-    // async getNormalizationValues(inputPath: string, normalization: AudioNormalization): Promise<AudioNormalizacionInformation> {
-    //     // -af loudnorm=I=-23:LRA=7:tp=-2:measured_I=-24.17:measured_LRA=6.1:measured_tp=-8.58:measured_thresh=-34.37:offset=-1.15
-    //     if (normalization === undefined) {
-    //         return null
-    //     }
-    //     return lastValueFrom(this.getAudioInformation(inputPath, normalization))
-    // }
     createThumbnailsCarousel() {
         //  ffmpeg -skip_frame nokey -i file.mp4 -vsync 0 -frame_pts true out%d.png
     }
@@ -684,26 +575,26 @@ exports.FFmpeg = FFmpeg;
 //     .catch(error => {
 //         console.log('error');
 //     });
-// new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample_cbr_320_44100.mp4', {
-//     type: AudioConversionType.ConstantRate,
-//     codec: AudioCodec.Mp3,
-//     bitrate: 320,
-//     frequency: 44.1
-// },  {
-//     type: 'ebuR128',
-//     inputI: -23,
-//     inputLRA: 7.0,
-//     inputTP: -2
-// })  .subscribe({
-//     next: (e: TranscodeProgressEvent) => {
-//         // console.log('event' + e)
-//         console.log(`${e.stage} - progress: ${e.percentage} - total: ${e.total}`);
-//     },
-//     error: (e) => {
-//         console.log('error: ' + e);
-//     },
-//     complete: () => console.log('complete')
-// })
+new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample_cbr_320_44100.mp4', {
+    type: audio_conversion_types_1.AudioConversionType.ConstantRate,
+    codec: audio_conversion_types_1.AudioCodec.Mp3,
+    bitrate: 320,
+    frequency: 44.1
+}, {
+    type: 'ebuR128',
+    inputI: -23,
+    inputLRA: 7.0,
+    inputTP: -2
+}).subscribe({
+    next: (e) => {
+        // console.log('event' + e)
+        // console.log(`${e.stage} - progress: ${e.percentage} - total: ${e.total}`);
+    },
+    error: (e) => {
+        console.log('error: ' + e);
+    },
+    complete: () => console.log('complete')
+});
 // new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.mp4', {
 //     type: AudioConversionType.ConstantRate,
 //     codec: AudioCodec.Mp3,
