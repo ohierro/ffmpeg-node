@@ -1,13 +1,9 @@
 "use strict";
-/*
-    ffmpeg -y -r 240 -f x11grab -draw_mouse 0 -s 1920x1080 -i :99 -c:v libvpx -b:v 384k
-    -qmin 7 -qmax 25 -maxrate 384k -bufsize 1000k screen.vb8.webm
-*/
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FFmpeg = void 0;
 const child_process = require("child_process");
-const stream_information_1 = require("./stream-information");
-const file_information_1 = require("./file-information");
+const stream_information_1 = require("./dtos/stream-information");
+const file_information_1 = require("./dtos/file-information");
 const rxjs_1 = require("rxjs");
 const audio_conversion_types_1 = require("./types/audio-conversion-types");
 const winston_1 = require("winston");
@@ -35,53 +31,6 @@ class FFmpeg {
             // },
         });
     }
-    // /**Adds a list of CLI options to the process */
-    // addOptions(optionsList: string[]): void {
-    //     optionsList.forEach(option => {
-    //         this.options.push(option);
-    //     });
-    // }
-    // /**Adds a single CLI option to the list */
-    // addOption(option: string): void {
-    //     this.options.push(option);
-    // }
-    // /**Sets the output file name */
-    // setOutputFile(filename: string): void {
-    //     this.outputFilename = filename;
-    // }
-    // /**Sets the callback function that is called once the process exits on quits. The first argument to the
-    //  * callback is the exit code (number) and the second argument is the signal (string).
-    // */
-    // setOnCloseCallback(callbackFunc: Function): void {
-    //     this.runProcess.on('exit', function (code, signal) {
-    //         callbackFunc(code, signal);
-    //     });
-    // }
-    // setOutputCallback(customOutput: NodeJS.WritableStream) {
-    //     this.customOutput = customOutput;
-    // }
-    // /**Returns the arguments */
-    // private returnCLIArgs(): string[] {
-    //     if (this.outputFilename != "") {
-    //         let temp = this.options;
-    //         temp.push(this.outputFilename);
-    //         return temp;
-    //     }
-    //     return this.options;
-    // }
-    // /**Begins the FFmpeg process. Accepts an optional silent boolean value which supresses the output */
-    // run(silent?: boolean): void {
-    //     // Run the command here
-    //     this.runProcess = child_process.spawn('ffmpeg', this.returnCLIArgs());
-    //     this.runProcess.stdin.setDefaultEncoding('utf-8');
-    //     if (this.customOutput) {
-    //         this.runProcess.stdout.pipe(this.customOutput);
-    //     }
-    //     if (!silent) {
-    //         this.runProcess.stdout.pipe(process.stderr);
-    //         this.runProcess.stderr.pipe(process.stderr);
-    //     }
-    // }
     getInformation(absolutePath) {
         this.logger.info(`getInformation :: call with ${absolutePath}`);
         return new Promise((resolve, reject) => {
@@ -498,13 +447,12 @@ class FFmpeg {
     }
     createThumbnailsCarousel() {
         //  ffmpeg -skip_frame nokey -i file.mp4 -vsync 0 -frame_pts true out%d.png
+        throw Error('Not yet implemented!!');
     }
     getImageThumbnailAt(inputPath, at, outputPath) {
-        // ffmpeg -i input.mp4 -ss 00:00:01.000 -vframes 1 output.png
+        this.logger.info(`getImageThumbnailAt :: call with ${inputPath}, ${at}, ${outputPath}`);
         return new Promise((resolve, reject) => {
-            // ffmpeg -y -i file.mp4 test.mp4
             const cmd = 'ffmpeg';
-            // ffprobe -v error -count_packets -select_streams v:0 -show_entries stream=nb_read_packets -of default=nokey=1:noprint_wrappers=1 files/file.mp4
             const args = ['-v',
                 'error',
                 '-i',
@@ -516,13 +464,15 @@ class FFmpeg {
                 '-y',
                 outputPath
             ];
+            this.logger.info(`getImageThumbnailAt :: spawn ${cmd} with ${args.join(' ')}`);
             const runProcess = child_process.spawn(cmd, args);
             runProcess.stdin.setDefaultEncoding('utf-8');
-            let response = '';
             runProcess.stderr.on('data', (data) => {
+                this.logger.error(`getImageThumbnailAt :: error ${data}`);
                 reject(data);
             });
-            runProcess.on('exit', function (code, signal) {
+            runProcess.on('exit', (code, signal) => {
+                this.logger.info(`getImageThumbnailAt :: end`);
                 resolve();
             });
         });
@@ -536,71 +486,38 @@ class FFmpeg {
         const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
         return totalSeconds;
     }
-    /**Quits the FFmpeg process */
-    quit() {
-        // Send the `q` key
-        if (!this.runProcess.killed) {
-            this.runProcess.stdin.write('q');
-        }
-    }
-    /**Kills the process forcefully (might not save the output) */
-    kill() {
-        if (!this.runProcess.killed) {
-            this.runProcess.kill();
-        }
-    }
 }
 exports.FFmpeg = FFmpeg;
-// new FFmpeg().getInformation('files/input.wav')
-// new FFmpeg().getAudioInformation('files/audio/input_medium.wav', {
-//         type: 'ebuR128',
-//         inputI: -23,
-//         inputLRA: 7.0,
-//         inputTP: -2
-//     }).subscribe({
-//             next: (e: TranscodeProgressEvent) => {
-//                 // console.log('event' + e)
-//                 console.log(`progress: ${e.percentage}`);
-//             },
-//             error: (e) => {
-//                 console.log('error: ' + e);
-//             },
-//             complete: () => console.log('complete')
-//         })
-// new FFmpeg()
-//     .audioNormalize('files/output/sample_cbr_320_44100.mp4', 'files/output/sample_cbr_320_44100_normalized.mp4')
-//     .then(normalized  => {
-//         console.log('normalizado');
-//     })
-//     .catch(error => {
-//         console.log('error');
-//     });
-new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample_cbr_320_44100.mp4', {
-    type: audio_conversion_types_1.AudioConversionType.ConstantRate,
-    codec: audio_conversion_types_1.AudioCodec.Mp3,
-    bitrate: 320,
-    frequency: 44.1
-}, {
-    type: 'ebuR128',
-    inputI: -23,
-    inputLRA: 7.0,
-    inputTP: -2
-}).subscribe({
-    next: (e) => {
-        // console.log('event' + e)
-        // console.log(`${e.stage} - progress: ${e.percentage} - total: ${e.total}`);
-    },
-    error: (e) => {
-        console.log('error: ' + e);
-    },
-    complete: () => console.log('complete')
-});
-// new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.mp4', {
+// // new FFmpeg().getInformation('files/input.wav')
+// // new FFmpeg().getAudioInformation('files/audio/input_medium.wav', {
+// //         type: 'ebuR128',
+// //         inputI: -23,
+// //         inputLRA: 7.0,
+// //         inputTP: -2
+// //     }).subscribe({
+// //             next: (e: TranscodeProgressEvent) => {
+// //                 // console.log('event' + e)
+// //                 console.log(`progress: ${e.percentage}`);
+// //             },
+// //             error: (e) => {
+// //                 console.log('error: ' + e);
+// //             },
+// //             complete: () => console.log('complete')
+// //         })
+// // new FFmpeg()
+// //     .audioNormalize('files/output/sample_cbr_320_44100.mp4', 'files/output/sample_cbr_320_44100_normalized.mp4')
+// //     .then(normalized  => {
+// //         console.log('normalizado');
+// //     })
+// //     .catch(error => {
+// //         console.log('error');
+// //     });
+// new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample_cbr_320_44100.mp4', {
 //     type: AudioConversionType.ConstantRate,
 //     codec: AudioCodec.Mp3,
 //     bitrate: 320,
 //     frequency: 44.1
-// }, {
+// },  {
 //     type: 'ebuR128',
 //     inputI: -23,
 //     inputLRA: 7.0,
@@ -608,27 +525,47 @@ new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample
 // })  .subscribe({
 //     next: (e: TranscodeProgressEvent) => {
 //         // console.log('event' + e)
-//         console.log(`progress: ${e.percentage}`);
+//         // console.log(`${e.stage} - progress: ${e.percentage} - total: ${e.total}`);
 //     },
 //     error: (e) => {
 //         console.log('error: ' + e);
 //     },
 //     complete: () => console.log('complete')
 // })
-// new FFmpeg().getAudioInformation('files/output/sample_cbr_320_44100.mp4', { type: 'ebuR128', inputI: -23, inputLRA: 7, inputTP: -2})
-//     .then(data => {
-//         console.log(data);
-//     })
-// new FFmpeg().convert('')
-//     .then(data => console.log(data))
-// new FFmpeg().convert('files/file.mp4', 'files/output/sample.mp4', { width: 640, height: 480, codec: 'h264' })
-//     .subscribe({
-//         next: (e) => {
-//             console.log('event' + e)
-//         },
-//         error: (e) => {
-//             console.log('error: ' + e);
-//         },
-//         complete: () => console.log('complete')
-//     })
+// // new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.mp4', {
+// //     type: AudioConversionType.ConstantRate,
+// //     codec: AudioCodec.Mp3,
+// //     bitrate: 320,
+// //     frequency: 44.1
+// // }, {
+// //     type: 'ebuR128',
+// //     inputI: -23,
+// //     inputLRA: 7.0,
+// //     inputTP: -2
+// // })  .subscribe({
+// //     next: (e: TranscodeProgressEvent) => {
+// //         // console.log('event' + e)
+// //         console.log(`progress: ${e.percentage}`);
+// //     },
+// //     error: (e) => {
+// //         console.log('error: ' + e);
+// //     },
+// //     complete: () => console.log('complete')
+// // })
+// // new FFmpeg().getAudioInformation('files/output/sample_cbr_320_44100.mp4', { type: 'ebuR128', inputI: -23, inputLRA: 7, inputTP: -2})
+// //     .then(data => {
+// //         console.log(data);
+// //     })
+// // new FFmpeg().convert('')
+// //     .then(data => console.log(data))
+// // new FFmpeg().convert('files/file.mp4', 'files/output/sample.mp4', { width: 640, height: 480, codec: 'h264' })
+// //     .subscribe({
+// //         next: (e) => {
+// //             console.log('event' + e)
+// //         },
+// //         error: (e) => {
+// //             console.log('error: ' + e);
+// //         },
+// //         complete: () => console.log('complete')
+// //     })
 //# sourceMappingURL=ffmpeg.js.map

@@ -4,7 +4,7 @@ const ffmpeg_1 = require("./ffmpeg");
 const fs = require("fs/promises");
 const rxjs_1 = require("rxjs");
 const audio_conversion_types_1 = require("./types/audio-conversion-types");
-const stream_information_1 = require("./stream-information");
+const stream_information_1 = require("./dtos/stream-information");
 beforeEach(async () => {
     const files = await fs.readdir('files/audio/output');
     for (let file of files) {

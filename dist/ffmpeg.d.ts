@@ -1,7 +1,7 @@
-import { FileInformation } from './file-information';
+import { FileInformation } from './dtos/file-information';
 import { Observable } from 'rxjs';
-import { ConvertOptions } from './convert-options';
-import { AudioConvertOptions } from './audio-convert-options';
+import { ConvertOptions } from './dtos/convert-options';
+import { AudioConvertOptions } from './dtos/audio-convert-options';
 import { TranscodeProgressEvent } from './types/transcode-progress-event';
 import { AudioNormalizacionInformation } from './types/audio-normalization-information';
 import { AudioNormalization } from './types/audio-normalization';
@@ -35,8 +35,4 @@ export declare class FFmpeg {
     createThumbnailsCarousel(): void;
     getImageThumbnailAt(inputPath: string, at: string, outputPath: string): Promise<void>;
     private parseTimeToSeconds;
-    /**Quits the FFmpeg process */
-    quit(): void;
-    /**Kills the process forcefully (might not save the output) */
-    kill(): void;
 }
