@@ -2,7 +2,7 @@ import exp = require("constants")
 import { FFmpeg } from "./ffmpeg"
 import * as fs from 'fs/promises'
 import { lastValueFrom } from "rxjs"
-import { VideoStreamInformation } from "./stream-information"
+import { VideoStreamInformation } from "./dtos/stream-information"
 
 beforeEach(async () => {
   const files = await fs.readdir('files/output')

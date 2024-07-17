@@ -3,7 +3,7 @@ import { FFmpeg } from "./ffmpeg"
 import * as fs from 'fs/promises'
 import { lastValueFrom } from "rxjs"
 import { AudioCodec, AudioConversionType } from "./types/audio-conversion-types"
-import { AudioStreamInformation } from "./stream-information"
+import { AudioStreamInformation } from "./dtos/stream-information"
 import { AudioNormalization } from "./types/audio-normalization"
 
 beforeEach(async () => {

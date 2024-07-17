@@ -1,4 +1,4 @@
-import { AudioCodec, AudioConversionType } from "./types/audio-conversion-types"
+import { AudioCodec, AudioConversionType } from "../types/audio-conversion-types"
 
 export class AudioConvertOptions {
   codec: AudioCodec

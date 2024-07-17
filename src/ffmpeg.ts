@@ -1,9 +1,9 @@
 import child_process = require('child_process');
-import { AudioStreamInformation, StreamInformation, VideoStreamInformation } from './stream-information'
-import { FileInformation } from './file-information';
+import { AudioStreamInformation, StreamInformation, VideoStreamInformation } from './dtos/stream-information'
+import { FileInformation } from './dtos/file-information';
 import { from, Observable } from 'rxjs';
-import { ConvertOptions } from './convert-options';
-import { AudioConvertOptions } from './audio-convert-options';
+import { ConvertOptions } from './dtos/convert-options';
+import { AudioConvertOptions } from './dtos/audio-convert-options';
 import { AudioCodec, AudioConversionType } from './types/audio-conversion-types';
 import { TranscodeProgressEvent } from './types/transcode-progress-event';
 import { AudioNormalizacionInformation } from './types/audio-normalization-information';

@@ -2,7 +2,7 @@ import exp = require("constants")
 import { FFmpeg } from "./ffmpeg"
 import { fail } from "assert"
 import * as fs from 'fs/promises'
-import { VideoStreamInformation } from "./stream-information"
+import { VideoStreamInformation } from "./dtos/stream-information"
 
 beforeAll(async () => {
   try {
