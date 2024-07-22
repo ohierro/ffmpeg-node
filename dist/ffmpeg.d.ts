@@ -29,7 +29,9 @@ export declare class FFmpeg {
      * @returns A Promise resolved with the number of packets of the file
      */
     getPacketNumber(inputPath: string, isVideo?: boolean): Promise<number>;
-    convert(inputPath: string, outputPath: string, options: ConvertOptions): Observable<Number>;
+    convert(inputPath: string, outputPath: string, options: ConvertOptions): Observable<TranscodeProgressEvent>;
+    transcodeVideo(inputPath: string, outputPath: string, options: ConvertOptions): Observable<TranscodeProgressEvent>;
+    private _transcodeVideo;
     transcodeAudio(inputPath: string, outputPath: string, options: AudioConvertOptions, normalization?: AudioNormalization): Observable<TranscodeProgressEvent>;
     private _transcodeAudio;
     createThumbnailsCarousel(): void;

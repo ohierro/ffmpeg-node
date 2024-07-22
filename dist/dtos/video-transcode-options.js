@@ -1,13 +1,22 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Preset = exports.ConvertOptions = void 0;
-class ConvertOptions {
+exports.Preset = exports.Codec = exports.VideoTranscodeOptions = void 0;
+class VideoTranscodeOptions {
     constructor() {
-        this.preset = Preset.medium; // https://trac.ffmpeg.org/wiki/Encode/H.264#Preset
         this.fastStart = false; // https://trac.ffmpeg.org/wiki/Encode/H.264#faststartforwebvideo
+        this.preset = Preset.medium; // https://trac.ffmpeg.org/wiki/Encode/H.264#Preset
     }
 }
-exports.ConvertOptions = ConvertOptions;
+exports.VideoTranscodeOptions = VideoTranscodeOptions;
+// https://trac.ffmpeg.org/wiki
+var Codec;
+(function (Codec) {
+    Codec["h264"] = "h264";
+    Codec["h265"] = "h265";
+    Codec["vp9"] = "vp9";
+    Codec["ffv1"] = "ffv1";
+    Codec["av1"] = "av1";
+})(Codec || (exports.Codec = Codec = {}));
 var Preset;
 (function (Preset) {
     Preset["ultrafast"] = "ultrafast";
@@ -20,4 +29,4 @@ var Preset;
     Preset["slower"] = "slower";
     Preset["veryslow"] = "veryslow";
 })(Preset || (exports.Preset = Preset = {}));
-//# sourceMappingURL=convert-options.js.map
+//# sourceMappingURL=video-transcode-options.js.map

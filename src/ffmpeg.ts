@@ -2,7 +2,7 @@ import child_process = require('child_process');
 import { AudioStreamInformation, StreamInformation, VideoStreamInformation } from './dtos/stream-information'
 import { FileInformation } from './dtos/file-information';
 import { from, Observable } from 'rxjs';
-import { ConvertOptions } from './dtos/convert-options';
+import { ConvertOptions, Preset } from './dtos/convert-options';
 import { AudioConvertOptions } from './dtos/audio-convert-options';
 import { AudioCodec, AudioConversionType } from './types/audio-conversion-types';
 import { TranscodeProgressEvent } from './types/transcode-progress-event';
@@ -10,6 +10,8 @@ import { AudioNormalizacionInformation } from './types/audio-normalization-infor
 import { AudioNormalization } from './types/audio-normalization';
 import { createLogger, transports, format, Logger, level } from "winston";
 import addProcessId from './log/add-process-id';
+import { subscribe } from 'diagnostics_channel';
+import { VideoCodec, VideoFormat } from './types/video-conversion-types';
 
 
 /**Class that does the ffmpeg transformations */
@@ -34,15 +36,6 @@ export class FFmpeg {
                 format.json(),
             ),
             level: 'debug'
-            // format: format.combine(
-            //   format.timestamp(),
-            //   format.printf(({ timestamp, level, message, service }) => {
-            //     return `[${timestamp}] ${service} ${level}: ${message}`;
-            //   })
-            // ),
-            // defaultMeta: {
-            //   service: "WinstonExample",
-            // },
           });
     }
 
@@ -286,7 +279,7 @@ export class FFmpeg {
         })
     }
 
-    convert(inputPath: string, outputPath: string, options: ConvertOptions): Observable<Number> {
+    convert(inputPath: string, outputPath: string, options: ConvertOptions): Observable<TranscodeProgressEvent> {
         return new Observable((subscriber) => {
             this.getPacketNumber(inputPath)
                 .then(totalPackets => {
@@ -302,7 +295,7 @@ export class FFmpeg {
                     }
 
                     const args = [...argsVerbose, ...argsInput, ...argsScale, ...argsOutput]
-                    console.log('spawn');
+                    this.logger.debug(`_transcodeAudio :: span ${cmd} with ${args.join(' ')}`)
 
                     const runProcess = child_process.spawn(cmd, args);
                     runProcess.stdin.setDefaultEncoding('utf-8');
@@ -317,7 +310,11 @@ export class FFmpeg {
 
                         if (match) {
                             const { nframe } = match.groups
-                            subscriber.next(parseInt(nframe)/totalPackets)
+                            subscriber.next({
+                                percentage: Math.floor(parseInt(nframe)/totalPackets*100),
+                                stage: 'transcoding',
+                                total: Math.floor(parseInt(nframe)/totalPackets*100),
+                            })
                         }
                         // parse data
                     })
@@ -364,6 +361,108 @@ export class FFmpeg {
         })
     }
 
+    transcodeVideo(inputPath: string, outputPath: string, options: ConvertOptions): Observable<TranscodeProgressEvent> {
+        this.logger.info(`transcodeVideo :: call with ${inputPath} - ${outputPath} - ${JSON.stringify(options)}`)
+        // const durationObsv = from(this.getStreamDuration(inputPath))
+        return new Observable((subscriber) => {
+            this.getStreamDuration(inputPath,true)
+                .then(duration => {
+                    console.log(`duration ${duration}`)
+                    this._transcodeVideo(inputPath, outputPath, options, duration)
+                    .subscribe({
+                        next: (event: TranscodeProgressEvent) => {
+                            subscriber.next(event)
+                        },
+                        complete: () => subscriber.complete(),
+                        error: (e) => subscriber.error(e)
+                    })
+            })
+        })
+    }
+
+    private _transcodeVideo(inputPath: string, 
+                            outputPath: string, 
+                            options: ConvertOptions,
+                            duration: number) {
+        return new Observable((subscriber) => {
+            const cmd = 'ffmpeg'
+
+            const argsVerbose = ['-v', 'error', '-progress','-']
+            const argsInput = ['-i', inputPath]
+            const argsOutput = ['-y', outputPath]
+            const argsVideoCodec = ['-c:v', options.codec]
+            let argsFramerate = []
+            let argsVideoBitRate = []
+            let argsScale = []
+            let argsPreset = ['-preset', options.preset]
+            let argsFastStart = []
+
+            if (options.width && options.height) {
+                argsScale = ['-vf', `scale=${options.width}:${options.height}`]
+            }
+            if (options.fastStart) {
+                argsFastStart = ['-movflags', '+faststart']
+            }
+            if (options.bitRate) {
+                argsVideoBitRate = ['-b:v', `${options.bitRate}M`]
+            }
+            if (options.frameRate) {
+                argsFramerate = ['-r', options.frameRate]
+            }
+
+            const args = [
+                ...argsVerbose, 
+                ...argsInput, 
+                ...argsVideoBitRate, 
+                ...argsScale, 
+                ...argsVideoCodec, 
+                ...argsPreset, 
+                ...argsFastStart, 
+                ...argsFramerate,
+                ...argsOutput, 
+            ]
+            this.logger.debug(`_transcodeAudio :: span ${cmd} with ${args.join(' ')}`)
+
+            const runProcess = child_process.spawn(cmd, args);
+            runProcess.stdin.setDefaultEncoding('utf-8');
+
+            let response = ''
+
+            runProcess.stdout.on('data', (data) => {
+                // console.log(data);
+                const pattern = /out_time=(?<currentTime>.*)/
+                const match = pattern.exec(data.toString())
+
+                if (match) {
+                    const { currentTime } = match.groups
+
+                    this.logger.verbose(`_transcodeAudio :: currentTime ${currentTime} of ${duration}`)
+
+                    subscriber.next({
+                        total: duration,
+                        percentage: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
+                        stage: 'transcoding'
+                    })
+                }
+            })
+            runProcess.stderr.on('data', (data) => {
+                subscriber.error(data.toString())
+                runProcess.kill()
+            })
+            runProcess.on('message', function(code, signal) {
+                console.log(`message ${code}, ${signal}`);
+            })
+            runProcess.on('error', function(code, signal) {
+                console.log(`error ${code}, ${signal}`);
+            })
+            runProcess.on('exit', function (code, signal) {
+                console.log('exit');
+
+                subscriber.complete()
+            })
+        })
+    }
+
     transcodeAudio(inputPath: string, outputPath: string, options: AudioConvertOptions, normalization?: AudioNormalization): Observable<TranscodeProgressEvent> {
         this.logger.info(`transcodeAudio :: call with ${inputPath} - ${outputPath}`)
 
@@ -404,6 +503,9 @@ export class FFmpeg {
                                         normalizationInformation = event
                                     }
                                 },
+                                error: (error) => {
+                                    subscriber.error(error)
+                                },
                                 complete: () => {
                                     // do transcode
                                     lastPercentage = -1
@@ -430,8 +532,8 @@ export class FFmpeg {
                                                 this.logger.debug(`transcodeAudio :: transcode complete`)
 
                                                 subscriber.complete()
-                                            }
-
+                                            },
+                                            error: (error) => subscriber.error(error),
                                         })
                                 }
                             })
@@ -445,8 +547,8 @@ export class FFmpeg {
                                 },
                                 complete: () => {
                                     subscriber.complete()
-                                }
-
+                                },
+                                error: (error) => subscriber.error(error),
                             })
                     }
                 })
@@ -508,7 +610,7 @@ export class FFmpeg {
             }
             
             const args = [...argsVerbose, ...argsInput, ...argsCodec, ...argsQuality, ...argsFilters, ...argsOutput]
-            this.logger.debug(`_transcodeAudio :: span with ${args.join(' ')}`)
+            this.logger.debug(`_transcodeAudio :: span ${cmd} with ${args.join(' ')}`)
 
             const runProcess = child_process.spawn(cmd, args);
             runProcess.stdin.setDefaultEncoding('utf-8');
@@ -635,7 +737,7 @@ export class FFmpeg {
 // //         console.log('error');
 // //     });
 
-// new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample_cbr_320_44100.mp4', {
+// new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample_cbr_320_44100', {
 //     type: AudioConversionType.ConstantRate,
 //     codec: AudioCodec.Mp3,
 //     bitrate: 320,
@@ -685,15 +787,46 @@ export class FFmpeg {
         
 // //     })
 
-// // new FFmpeg().convert('')
-// //     .then(data => console.log(data))
-// // new FFmpeg().convert('files/file.mp4', 'files/output/sample.mp4', { width: 640, height: 480, codec: 'h264' })
-// //     .subscribe({
-// //         next: (e) => {
-// //             console.log('event' + e)
-// //         },
-// //         error: (e) => {
-// //             console.log('error: ' + e);
-// //         },
-// //         complete: () => console.log('complete')
-// //     })
+
+// new FFmpeg().transcodeAudio('files/audio/input_short.wav', 'files/output/sample_cbr_320_44100_normalized.aac', {
+//     type: AudioConversionType.ConstantRate,
+//     codec: AudioCodec.Aac,
+//     bitrate: 320,
+//     frequency: 44.1
+// }
+
+// new FFmpeg().transcodeVideo('files/file.mp4', 'files/output/video/sample_file1024x768_15.mp4', {
+//     codec: VideoCodec.vp9,
+//     preset: Preset.fast,
+//     width: 1024,
+//     height: 768,
+//     frameRate: 21,
+//     bitRate: 1.5
+// })
+// .subscribe({
+//     next: (e) => {
+//         console.log(`progress ${e.percentage}%` )
+//     },
+//     error: (e) => {
+//         console.log('error: ' + e);
+//     },
+//     complete: () => console.log('complete')
+// })
+
+
+// new FFmpeg().convert('')
+//     .then(data => console.log(data))
+// new FFmpeg().convert('files/cope/cascabel-parte-2-dalet_short.mp4', 'files/output/cascabel-parte-2-dalet_short_conv.mp4', 
+
+// new FFmpeg()
+//     .transcodeVideo('files/cope/cascabel-parte-1_short.mp4', 'files/output/converted.mp4', 
+//     { width: 320, height: 240, codec: 'h264' })
+//     .subscribe({
+//         next: (e) => {
+//             console.log(`progress ${e.percentage}%` )
+//         },
+//         error: (e) => {
+//             console.log('error: ' + e);
+//         },
+//         complete: () => console.log('complete')
+//     })

@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const ffmpeg_1 = require("./ffmpeg");
 const fs = require("fs/promises");
 const rxjs_1 = require("rxjs");
+const video_conversion_types_1 = require("./types/video-conversion-types");
+const convert_options_1 = require("./dtos/convert-options");
 beforeEach(async () => {
     const files = await fs.readdir('files/output');
     for (let file of files) {
@@ -22,7 +24,8 @@ test('basic conversions to common sizes', async () => {
         await (0, rxjs_1.lastValueFrom)(ffmpeg.convert('files/file_1920x1080.mp4', outputPath, {
             width: size[0],
             height: size[1],
-            codec: 'h264'
+            codec: video_conversion_types_1.VideoCodec.h264,
+            preset: convert_options_1.Preset.slow
         }));
         let info = await ffmpeg.getInformation(outputPath);
         let videoStream = info.streams.filter(s => s.type === 'video')[0];

@@ -3,6 +3,8 @@ import { FFmpeg } from "./ffmpeg"
 import * as fs from 'fs/promises'
 import { lastValueFrom } from "rxjs"
 import { VideoStreamInformation } from "./dtos/stream-information"
+import { VideoCodec, VideoFormat } from "./types/video-conversion-types"
+import { Preset } from "./dtos/convert-options"
 
 beforeEach(async () => {
   const files = await fs.readdir('files/output')
@@ -31,7 +33,8 @@ test('basic conversions to common sizes', async () => {
               {
                 width: size[0],
                 height: size[1],
-                codec: 'h264'
+                codec: VideoCodec.h264,
+                preset: Preset.slow
               })
           )
 

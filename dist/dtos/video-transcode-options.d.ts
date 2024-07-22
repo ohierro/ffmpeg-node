@@ -1,12 +1,18 @@
-import { VideoCodec } from "../types/video-conversion-types";
-export declare class ConvertOptions {
-    codec: VideoCodec;
-    preset?: Preset;
+export declare class VideoTranscodeOptions {
     width?: number;
     height?: number;
+    codec?: string;
     fastStart?: boolean;
-    frameRate?: number;
+    preset?: Preset;
     bitRate?: number;
+    frameRate?: number;
+}
+export declare enum Codec {
+    h264 = "h264",
+    h265 = "h265",
+    vp9 = "vp9",
+    ffv1 = "ffv1",
+    av1 = "av1"
 }
 export declare enum Preset {
     ultrafast = "ultrafast",
