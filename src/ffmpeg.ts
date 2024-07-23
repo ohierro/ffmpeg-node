@@ -391,6 +391,7 @@ export class FFmpeg {
             const argsInput = ['-i', inputPath]
             const argsOutput = ['-y', outputPath]
             const argsVideoCodec = ['-c:v', options.codec]
+            const argsPerformance = ['-threads', '2'] // TODO: CORE TOTAL OR PARAMETER...
             let argsFramerate = []
             let argsVideoBitRate = []
             let argsScale = []
@@ -421,7 +422,7 @@ export class FFmpeg {
                 ...argsFramerate,
                 ...argsOutput, 
             ]
-            this.logger.debug(`_transcodeAudio :: span ${cmd} with ${args.join(' ')}`)
+            this.logger.debug(`_transcodeVideo :: span ${cmd} with ${args.join(' ')}`)
 
             const runProcess = child_process.spawn(cmd, args);
             runProcess.stdin.setDefaultEncoding('utf-8');
@@ -436,10 +437,10 @@ export class FFmpeg {
                 if (match) {
                     const { currentTime } = match.groups
 
-                    this.logger.verbose(`_transcodeAudio :: currentTime ${currentTime} of ${duration}`)
+                    this.logger.verbose(`_transcodeVideo :: currentTime ${currentTime} of ${duration}`)
 
                     subscriber.next({
-                        total: duration,
+                        total: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
                         percentage: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
                         stage: 'transcoding'
                     })
@@ -516,7 +517,7 @@ export class FFmpeg {
                                             next: (event) => {
                                                 let currentPercentage = Math.floor(event.percentage / 2)
 
-                                                this.logger.verbose(`transcodeAudio :: currentPercenage ${currentPercentage}`)
+                                                this.logger.verbose(`transcodeAudio :: transcode currentPercenage ${currentPercentage}`)
 
                                                 if ( currentPercentage > lastPercentage ) {
                                                     subscriber.next({

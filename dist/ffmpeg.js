@@ -154,7 +154,7 @@ class FFmpeg {
                     const match = pattern.exec(data.toString());
                     if (match) {
                         const { currentTime } = match.groups;
-                        this.logger.info(`getAudioInformation :: currentTime ${currentTime}`);
+                        this.logger.info(`getAudioInformation :: getAudioInformation - currentTime ${currentTime}`);
                         subscriber.next({
                             total: duration,
                             percentage: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
@@ -356,7 +356,7 @@ class FFmpeg {
                     const { currentTime } = match.groups;
                     this.logger.verbose(`_transcodeAudio :: currentTime ${currentTime} of ${duration}`);
                     subscriber.next({
-                        total: duration,
+                        total: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
                         percentage: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
                         stage: 'transcoding'
                     });
@@ -505,7 +505,7 @@ class FFmpeg {
                 const match = pattern.exec(data.toString());
                 if (match) {
                     const { currentTime } = match.groups;
-                    this.logger.verbose(`_transcodeAudio :: currentTime ${currentTime}`);
+                    this.logger.verbose(`_transcodeAudio :: transcoding - currentTime ${currentTime}`);
                     subscriber.next({
                         total: duration,
                         percentage: Math.round((this.parseTimeToSeconds(currentTime) * 100 / duration)),
