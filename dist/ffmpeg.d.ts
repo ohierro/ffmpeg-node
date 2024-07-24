@@ -35,6 +35,6 @@ export declare class FFmpeg {
     transcodeAudio(inputPath: string, outputPath: string, options: AudioConvertOptions, normalization?: AudioNormalization): Observable<TranscodeProgressEvent>;
     private _transcodeAudio;
     createThumbnailsCarousel(): void;
-    getImageThumbnailAt(inputPath: string, at: string, outputPath: string): Promise<void>;
+    getImageThumbnailAt(inputPath: string, at: string, outputPath: string): Promise<string>;
     private parseTimeToSeconds;
 }

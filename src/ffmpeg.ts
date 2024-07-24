@@ -660,10 +660,10 @@ export class FFmpeg {
         throw Error('Not yet implemented!!')
     }
 
-    getImageThumbnailAt(inputPath: string, at: string, outputPath: string) {
+    getImageThumbnailAt(inputPath: string, at: string, outputPath: string): Promise<string> {
         this.logger.info(`getImageThumbnailAt :: call with ${inputPath}, ${at}, ${outputPath}`)
 
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<string>((resolve, reject) => {
             const cmd = 'ffmpeg'
             
             const args = ['-v',
@@ -689,7 +689,7 @@ export class FFmpeg {
 
             runProcess.on('exit', (code, signal) => {
                 this.logger.info(`getImageThumbnailAt :: end`)
-                resolve()
+                resolve(outputPath)
             })
         })
     }
