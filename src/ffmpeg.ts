@@ -168,6 +168,7 @@ export class FFmpeg {
         })
     }
 
+    // TODO: rename to getAudioNormalizationInformation
     getAudioInformation(inputPath: string, target: AudioNormalization): Observable<TranscodeProgressEvent | AudioNormalizacionInformation> {
         this.logger.info(`getAudioInformation :: call with ${inputPath}, ${target}`)
         return new Observable((subscriber) => {
@@ -391,7 +392,7 @@ export class FFmpeg {
             const argsInput = ['-i', inputPath]
             const argsOutput = ['-y', outputPath]
             const argsVideoCodec = ['-c:v', options.codec]
-            const argsPerformance = ['-threads', '2'] // TODO: CORE TOTAL OR PARAMETER...
+            // const argsPerformance = ['-threads', '1'] // TODO: CORE TOTAL OR PARAMETER...
             let argsFramerate = []
             let argsVideoBitRate = []
             let argsScale = []
@@ -413,6 +414,7 @@ export class FFmpeg {
 
             const args = [
                 ...argsVerbose, 
+                // ...argsPerformance,
                 ...argsInput, 
                 ...argsVideoBitRate, 
                 ...argsScale, 
@@ -540,11 +542,24 @@ export class FFmpeg {
                             })
                     } else {
                         this.logger.debug(`transcodeAudio :: normalization disabled`)
+                        let lastPercentage = -1
 
                         this._transcodeAudio(inputPath, outputPath, options, duration)
                             .subscribe({
                                 next: (event) => {
-                                    subscriber.next(event)
+                                    let currentPercentage = Math.floor(event.percentage)
+
+                                    this.logger.verbose(`transcodeAudio :: transcode currentPercenage ${currentPercentage}`)
+
+                                    if ( currentPercentage > lastPercentage ) {
+                                        subscriber.next({
+                                            percentage: event.percentage,
+                                            total: event.percentage,
+                                            stage: 'transcoding'
+                                        })
+                                    
+                                        lastPercentage = currentPercentage
+                                    }
                                 },
                                 complete: () => {
                                     subscriber.complete()
@@ -562,7 +577,6 @@ export class FFmpeg {
                             duration: number, 
                             normalization?: AudioNormalization, 
                             normalizationValues?: AudioNormalizacionInformation): Observable<TranscodeProgressEvent> {
-        
         this.logger.debug(`_transcodeAudio :: call`)
         
         return new Observable((subscriber) => {
@@ -710,22 +724,22 @@ export class FFmpeg {
 
 
 // // new FFmpeg().getInformation('files/input.wav')
-// // new FFmpeg().getAudioInformation('files/audio/input_medium.wav', {
-// //         type: 'ebuR128',
-// //         inputI: -23,
-// //         inputLRA: 7.0,
-// //         inputTP: -2
-// //     }).subscribe({
-// //             next: (e: TranscodeProgressEvent) => {
-// //                 // console.log('event' + e)
-// //                 console.log(`progress: ${e.percentage}`);
+// new FFmpeg().getAudioInformation('files/audio/input_medium.wav', {
+//         type: 'ebuR128',
+//         inputI: -23,
+//         inputLRA: 7.0,
+//         inputTP: -2
+//     }).subscribe({
+//             next: (e: TranscodeProgressEvent) => {
+//                 // console.log('event' + e)
+//                 console.log(`progress: ${e.percentage} ${e.total}`);
                 
-// //             },
-// //             error: (e) => {
-// //                 console.log('error: ' + e);
-// //             },
-// //             complete: () => console.log('complete')
-// //         })
+//             },
+//             error: (e) => {
+//                 console.log('error: ' + e);
+//             },
+//             complete: () => console.log('complete')
+//         })
 
 
 // // new FFmpeg()
@@ -738,10 +752,10 @@ export class FFmpeg {
 // //         console.log('error');
 // //     });
 
-// new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample_cbr_320_44100', {
+// new FFmpeg().transcodeAudio('files/audio/input_medium.wav', 'files/output/sample_cbr_320_44100.mp3', {
 //     type: AudioConversionType.ConstantRate,
 //     codec: AudioCodec.Mp3,
-//     bitrate: 320,
+//     bitrate: 192,
 //     frequency: 44.1
 // },  {
 //     type: 'ebuR128',
@@ -751,7 +765,7 @@ export class FFmpeg {
 // })  .subscribe({
 //     next: (e: TranscodeProgressEvent) => {
 //         // console.log('event' + e)
-//         // console.log(`${e.stage} - progress: ${e.percentage} - total: ${e.total}`);
+//         console.log(`${e.stage} - progress: ${e.percentage} - total: ${e.total}`);
         
 //     },
 //     error: (e) => {
