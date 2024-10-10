@@ -1,6 +1,6 @@
 {
   "name": "@ohierro/ffmpeg-node",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "FFmpeg CLI wrapper for Nodejs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
