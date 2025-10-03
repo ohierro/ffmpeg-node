@@ -74,8 +74,14 @@ class FFmpeg {
                             videoStreamInfo.height = jsonStream.height;
                             videoStreamInfo.codec = jsonStream.codec_name;
                             // if (streamInfo.type === 'video') {
-                            videoStreamInfo.aspect_ratio = jsonStream.display_aspect_ratio;
-                            // }
+                            // videoStreamInfo.aspect_ratio = jsonStream.display_aspect_ratio
+                            videoStreamInfo.aspect_ratio = jsonStream.width / jsonStream.height;
+                            if (videoStreamInfo.aspect_ratio < 1) {
+                                videoStreamInfo.landscape = false;
+                            }
+                            else {
+                                videoStreamInfo.landscape = true;
+                            }
                             streamInfo = videoStreamInfo;
                         }
                         this.logger.debug(`getInformation :: stream parsed ${streamInfo}`);

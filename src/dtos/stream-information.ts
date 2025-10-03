@@ -15,7 +15,8 @@ export class AudioStreamInformation extends StreamInformation {
 }
 
 export class VideoStreamInformation extends StreamInformation {
-  aspect_ratio?: string
+  aspect_ratio: number
   width: number;
   height: number;
+  landscape: boolean
 }
